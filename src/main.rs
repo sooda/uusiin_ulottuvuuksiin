@@ -30,25 +30,25 @@ fn view(app: &App, model: &Model, frame: Frame){
     // this could be just bit patterns from 0 to 15
     let verts = [
         // bottom
-        (-1.0, -1.0, -1.0, -1.0),
-        ( 1.0, -1.0, -1.0, -1.0),
-        (-1.0,  1.0, -1.0, -1.0),
-        ( 1.0,  1.0, -1.0, -1.0),
+        vec4(-1.0, -1.0, -1.0, -1.0),
+        vec4( 1.0, -1.0, -1.0, -1.0),
+        vec4(-1.0,  1.0, -1.0, -1.0),
+        vec4( 1.0,  1.0, -1.0, -1.0),
         // top
-        (-1.0, -1.0,  1.0, -1.0),
-        ( 1.0, -1.0,  1.0, -1.0),
-        (-1.0,  1.0,  1.0, -1.0),
-        ( 1.0,  1.0,  1.0, -1.0),
+        vec4(-1.0, -1.0,  1.0, -1.0),
+        vec4( 1.0, -1.0,  1.0, -1.0),
+        vec4(-1.0,  1.0,  1.0, -1.0),
+        vec4( 1.0,  1.0,  1.0, -1.0),
         // bottom
-        (-1.0, -1.0, -1.0,  1.0),
-        ( 1.0, -1.0, -1.0,  1.0),
-        (-1.0,  1.0, -1.0,  1.0),
-        ( 1.0,  1.0, -1.0,  1.0),
+        vec4(-1.0, -1.0, -1.0,  1.0),
+        vec4( 1.0, -1.0, -1.0,  1.0),
+        vec4(-1.0,  1.0, -1.0,  1.0),
+        vec4( 1.0,  1.0, -1.0,  1.0),
         // top
-        (-1.0, -1.0,  1.0,  1.0),
-        ( 1.0, -1.0,  1.0,  1.0),
-        (-1.0,  1.0,  1.0,  1.0),
-        ( 1.0,  1.0,  1.0,  1.0),
+        vec4(-1.0, -1.0,  1.0,  1.0),
+        vec4( 1.0, -1.0,  1.0,  1.0),
+        vec4(-1.0,  1.0,  1.0,  1.0),
+        vec4( 1.0,  1.0,  1.0,  1.0),
     ];
     /*
      * 2 6 (-1, 1)  3 7 (1,  1)
@@ -57,20 +57,48 @@ fn view(app: &App, model: &Model, frame: Frame){
      */
 
     // just a 3d to start with
+    // faces as viewed from the outside, hopefully consistent "Z" winding
+    // but "left" and "right" as viewed from the front, not that particular face
     let quads = [
         (0, 1, 2, 3), // bot
-        (4, 5, 6, 7), // top
-        (0, 1, 4, 5), // front
-        (2, 3, 6, 7), // back
-        (2, 0, 6, 4), // left
-        (1, 3, 5, 7), // right
+        (6, 7, 4, 5), // top
+        (4, 5, 0, 1), // front
+        (7, 6, 3, 2), // back
+        (6, 4, 2, 0), // left
+        (5, 7, 1, 3), // right
     ];
-    let v = |i: usize| Vec3::new(verts[i].0, verts[i].1, verts[i].2);
-    let mut tri = quads.iter()
+    let quads2 = quads.iter().map(|q| (8 + q.0, 8 + q.1, 8 + q.2, 8 + q.3)).collect::<Vec<_>>();
+    // look at a picture of a cube inside a cube to see this; outer has w=-1, inner w=1
+    // what's the winding or orientation with these? split across two 4D coords, depends on viewpoint
+    let quads3 = [
+        (0, 1, 8, 9), // bottom front
+        (3, 2, 11, 10), // bottom back
+        (2, 0, 10, 8), // bottom left
+        (1, 3, 9, 11), // bottom right
+
+        (4, 5, 12, 13), // top front
+        (7, 6, 15, 14), // top back
+        (6, 4, 14, 12), // top left
+        (5, 7, 13, 15), // top right
+
+        (4, 12, 0, 8), // front left
+        (5, 13, 1, 9), // front right
+
+        (6, 14, 2, 10), // back left
+        (7, 15, 3, 11), // back right
+    ];
+
+    // just to a "4D plane" (3D volume) for now
+    //let project4d = |p: Vec4| vec3(p.x, p.y, p.z);
+    let lw = 2.5;
+    let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
+
+    let v = |i: usize| project4d(verts[i]);
+    let mut tri = quads.iter().chain(quads2.iter()).chain(quads3.iter())
         .flat_map(|q| {
             let mid = 0.25 * (v(q.0) + v(q.1) + v(q.2) + v(q.3));
             let p = 0.5 * (mid + Vec3::splat(1.0));
-            let c = lin_srgba(p.x, p.y, p.z, 0.9);
+            let c = lin_srgba(p.x, p.y, p.z, 0.2); // FIXME colors in 4d
             let a = Tri([(v(q.0), c), (v(q.1), c), (v(q.2), c)]);
             let b = Tri([(v(q.3), c), (v(q.2), c), (v(q.1), c)]);
             iter::once(a).chain(iter::once(b))
