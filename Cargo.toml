@@ -1,0 +1,8 @@
+[package]
+name = "avaruuskuutio"
+version = "0.1.0"
+edition = "2024"
+authors = ["Konsta Hölttä <sooda@iki.fi>"]
+
+[dependencies]
+nannou = "0.19"
