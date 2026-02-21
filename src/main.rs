@@ -1,5 +1,6 @@
 use nannou::prelude::*;
 use nannou::geom::Tri;
+use nannou::color::IntoLinSrgba;
 use std::iter;
 
 fn main() {
@@ -66,6 +67,25 @@ fn view(app: &App, model: &Model, frame: Frame){
         vec4(-1.0,  1.0,  1.0,  1.0),
         vec4( 1.0,  1.0,  1.0,  1.0),
     ];
+    let colors = [
+        AQUA,
+        BLUEVIOLET,
+        CHOCOLATE,
+        DARKCYAN,
+        DARKGOLDENROD,
+        DARKGREEN,
+        DARKORANGE,
+        DARKRED,
+        LIGHTCORAL,
+        MEDIUMORCHID,
+        OLIVE,
+        PALEVIOLETRED,
+        REBECCAPURPLE,
+        SADDLEBROWN,
+        SILVER,
+        TURQUOISE,
+    ];
+    let colors: [LinSrgba; 16] = colors.map(|c| c.into_lin_srgba());
     /*
      * 2 6 (-1, 1)  3 7 (1,  1)
      *
@@ -110,14 +130,9 @@ fn view(app: &App, model: &Model, frame: Frame){
     let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
 
     let v = |i: usize| project4d(verts[i]);
-    let mut tri = quads.iter().chain(quads2.iter()).chain(quads3.iter())
-        .flat_map(|q| {
-            let mid = 0.25 * (v(q.0) + v(q.1) + v(q.2) + v(q.3));
-            let p = 0.5 * (mid + Vec3::splat(1.0));
-            let c = lin_srgba(p.x, p.y, p.z, 0.2); // FIXME colors in 4d
-            let a = Tri([(v(q.0), c), (v(q.1), c), (v(q.2), c)]);
-            let b = Tri([(v(q.3), c), (v(q.2), c), (v(q.1), c)]);
-            iter::once(a).chain(iter::once(b))
+    let mut qua = quads.iter().chain(quads2.iter()).chain(quads3.iter()).enumerate()
+        .map(|(i, q)| {
+            ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
         })
     .collect::<Vec<_>>();
 
@@ -127,13 +142,22 @@ fn view(app: &App, model: &Model, frame: Frame){
         * Mat4::from_rotation_z(app.time * 0.33)
         * Mat4::from_rotation_x(app.mouse.y / 100.0)
         * Mat4::from_rotation_y(app.mouse.x / 100.0);
-    tri.sort_by(|a, b| {
-        let a = a.map_vertices(|(pt, _color)| pt);
-        let b = b.map_vertices(|(pt, _color)| pt);
-        let za = (transform * a.centroid().extend(1.0)).z;
-        let zb = (transform * b.centroid().extend(1.0)).z;
+    qua.sort_by(|(a, _), (b, _)| {
+        let amid = 0.25 * (a.0 + a.1 + a.2 + a.3);
+        let bmid = 0.25 * (b.0 + b.1 + b.2 + b.3);
+        let za = (transform * amid.extend(1.0)).z;
+        let zb = (transform * bmid.extend(1.0)).z;
         za.partial_cmp(&zb).unwrap_or(std::cmp::Ordering::Equal)
     });
+    let tri = qua.iter()
+        .flat_map(|(q, c)| {
+            let c = lin_srgba(c.red, c.green, c.blue, 0.5);
+            let a = Tri([(q.0, c), (q.1, c), (q.2, c)]);
+            let b = Tri([(q.3, c), (q.2, c), (q.1, c)]);
+            iter::once(a).chain(iter::once(b))
+        })
+    .collect::<Vec<_>>();
+
     draw.transform(transform)
         .mesh()
         .tris_colored(tri);
