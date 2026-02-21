@@ -1,5 +1,6 @@
 use nannou::prelude::*;
 use nannou::geom::Tri;
+use nannou::glam::Vec4Swizzles;
 use nannou::color::IntoLinSrgba;
 use std::iter;
 
@@ -36,6 +37,52 @@ fn mouse_wheel(_app: &App, model: &mut Model, dt: MouseScrollDelta, _phase: Touc
 }
 
 fn update(_app: &App, _model: &mut Model, _update: Update) {
+}
+
+// first some aliases for consistency
+#[allow(dead_code)]
+fn rotation_xy(angle: f32) -> Mat4 {
+    Mat4::from_rotation_z(angle)
+}
+
+#[allow(dead_code)]
+fn rotation_xz(angle: f32) -> Mat4 {
+    Mat4::from_rotation_y(angle)
+}
+
+#[allow(dead_code)]
+fn rotation_yz(angle: f32) -> Mat4 {
+    Mat4::from_rotation_x(angle)
+}
+
+#[allow(dead_code)]
+fn rotation_xw(angle: f32) -> Mat4 {
+    let xy = rotation_xy(angle);
+    Mat4::from_cols(
+        xy.col(0).xzwy(),
+        xy.col(2).xzwy(),
+        xy.col(3).xzwy(),
+        xy.col(1).xzwy())
+}
+
+#[allow(dead_code)]
+fn rotation_yw(angle: f32) -> Mat4 {
+    let xy = rotation_xy(angle);
+    Mat4::from_cols(
+        xy.col(3).wxzy(),
+        xy.col(0).wxzy(),
+        xy.col(2).wxzy(),
+        xy.col(1).wxzy())
+}
+
+#[allow(dead_code)]
+fn rotation_zw(angle: f32) -> Mat4 {
+    let xy = rotation_xy(angle);
+    Mat4::from_cols(
+        xy.col(2).zwxy(),
+        xy.col(3).zwxy(),
+        xy.col(0).zwxy(),
+        xy.col(1).zwxy())
 }
 
 fn view(app: &App, model: &Model, frame: Frame){
@@ -128,8 +175,12 @@ fn view(app: &App, model: &Model, frame: Frame){
     //let project4d = |p: Vec4| vec3(p.x, p.y, p.z);
     let lw = 1.1 + 0.1 * model.scroll.abs();
     let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
+    let rotate4d = |p: Vec4| {
+        rotation_xy(app.time) * rotation_zw(1.5*app.time)
+            * p
+    };
 
-    let v = |i: usize| project4d(verts[i]);
+    let v = |i: usize| project4d(rotate4d(verts[i]));
     let mut qua = quads.iter().chain(quads2.iter()).chain(quads3.iter()).enumerate()
         .map(|(i, q)| {
             ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
