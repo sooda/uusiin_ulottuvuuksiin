@@ -10,12 +10,28 @@ fn main() {
 
 struct Model {
     window_id: window::Id,
+    scroll: f32,
 }
 
 fn model(app: &App) -> Model {
-    let window_id = app.new_window().size(512, 512).view(view).build().unwrap();
+    let window_id = app.new_window()
+        .size(512, 512)
+        .view(view)
+        .mouse_wheel(mouse_wheel)
+        .build()
+        .unwrap();
 
-    Model { window_id }
+    Model { window_id, scroll: 14.0 }
+}
+
+fn mouse_wheel(_app: &App, model: &mut Model, dt: MouseScrollDelta, _phase: TouchPhase) {
+    match dt {
+        MouseScrollDelta::LineDelta(_h, v) => {
+            model.scroll += v;
+            println!("scroll {}", model.scroll);
+        },
+        MouseScrollDelta::PixelDelta(_) => {},
+    }
 }
 
 fn update(_app: &App, _model: &mut Model, _update: Update) {
@@ -90,7 +106,7 @@ fn view(app: &App, model: &Model, frame: Frame){
 
     // just to a "4D plane" (3D volume) for now
     //let project4d = |p: Vec4| vec3(p.x, p.y, p.z);
-    let lw = 2.5;
+    let lw = 1.1 + 0.1 * model.scroll.abs();
     let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
 
     let v = |i: usize| project4d(verts[i]);
