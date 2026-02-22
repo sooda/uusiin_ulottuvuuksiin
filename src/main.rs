@@ -309,9 +309,10 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
-    let scenes: [(fn(&App, &Model, Frame, f32), f32); 3] = [
-        (view_loading, 1.0),
-        (view_dropping, 1.0),
+    let scenes: [(fn(&App, &Model, Frame, f32), f32); _] = [
+        (view_loading, 0.5),
+        (view_dropping, 0.5),
+        (view_walking, 100.0),
         (view_hyper, 1000.0),
     ];
     let mut runtime = 0.0;
@@ -379,6 +380,40 @@ fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
             // FIXME aspect ratio
             .y(-0.5 * time * time * 540.0 / 960.0)
             .wh(vec2(0.8, 0.10));
+    }
+
+    draw.to_frame(app, &frame).unwrap();
+}
+
+fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
+    frame.clear(BLACK);
+
+    let window = app.window(model._window_id).unwrap();
+    let win_rect = window.rect();
+    let draw = app.draw();
+    {
+        let pi2 = std::f32::consts::FRAC_PI_2;
+        let tick = 1.1*100.0 * time * pi2;
+        let ftick = tick % pi2;
+        let itick = (tick - ftick) / pi2;
+
+        let sz = 0.2;
+        let ypos = -0.2;
+        let xpos = -0.5;
+
+        let draw = draw
+            .scale_x(win_rect.h())
+            .scale_y(win_rect.h());
+        draw
+            .x(itick * sz + xpos)
+            .y(ypos)
+            .z_radians(-ftick)
+            .translate(vec3(-0.5 * sz, 0.5 * sz, 0.0))
+            .rect()
+            .no_fill()
+            .stroke_color(WHITE)
+            .stroke_weight(0.01)
+            .wh(vec2(sz, sz));
     }
 
     draw.to_frame(app, &frame).unwrap();
