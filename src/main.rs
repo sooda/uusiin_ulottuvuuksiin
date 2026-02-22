@@ -3,6 +3,36 @@ use nannou::geom::Tri;
 use nannou::glam::Vec4Swizzles;
 use nannou::color::IntoLinSrgba;
 use std::iter;
+use std::cell::RefCell;
+
+struct Graphics {
+    uniform_buffer: wgpu::Buffer,
+    tris_buffer: wgpu::Buffer,
+    depth_texture: wgpu::Texture,
+    depth_texture_view: wgpu::TextureView,
+    bind_group: wgpu::BindGroup,
+    render_pipeline: wgpu::RenderPipeline,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Vertex {
+    position: (f32, f32, f32),
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct Uniforms {
+    world: Mat4,
+    view: Mat4,
+    proj: Mat4,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct Tris {
+    data: [Vertex; 144]
+}
 
 fn main() {
     nannou::app(model)
@@ -11,19 +41,77 @@ fn main() {
 }
 
 struct Model {
-    window_id: window::Id,
+    _window_id: window::Id,
     scroll: f32,
+    graphics: RefCell<Graphics>,
+}
+
+fn graphics(app: &App, window_id: window::Id) -> Graphics {
+    let window = app.window(window_id).unwrap();
+    let device = window.device();
+    let format = Frame::TEXTURE_FORMAT;
+    let depth_format = wgpu::TextureFormat::Depth32Float;
+    let msaa_samples = window.msaa_samples();
+    let (win_w, win_h) = window.inner_size_pixels();
+
+    let vs_desc = wgpu::include_wgsl!("../shaders/vs.wgsl");
+    let fs_desc = wgpu::include_wgsl!("../shaders/fs.wgsl");
+    let vs_mod = device.create_shader_module(vs_desc);
+    let fs_mod = device.create_shader_module(fs_desc);
+
+    let depth_texture = create_depth_texture(device, [win_w, win_h], depth_format, msaa_samples);
+    let depth_texture_view = depth_texture.view().build();
+
+    let uniforms = create_uniforms(0.0, [win_w, win_h]);
+    let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: uniforms_as_bytes(&uniforms),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
+    let tris = Tris { data: [Vertex { position: (0.0, 0.0, 0.0) }; 24 * 2 * 3] };
+    let tris_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: tris_as_bytes(&tris),
+        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+    });
+
+    let bind_group_layout = create_bind_group_layout(device);
+    let bind_group = create_bind_group(device, &bind_group_layout, &uniform_buffer, &tris_buffer);
+    let pipeline_layout = create_pipeline_layout(device, &bind_group_layout);
+    let render_pipeline = create_render_pipeline(
+        device,
+        &pipeline_layout,
+        &vs_mod,
+        &fs_mod,
+        format,
+        depth_format,
+        msaa_samples,
+    );
+
+    Graphics {
+        uniform_buffer,
+        tris_buffer,
+        depth_texture,
+        depth_texture_view,
+        bind_group,
+        render_pipeline,
+    }
 }
 
 fn model(app: &App) -> Model {
     let window_id = app.new_window()
-        .size(512, 512)
+        .size(960, 540)
         .view(view)
         .mouse_wheel(mouse_wheel)
         .build()
         .unwrap();
 
-    Model { window_id, scroll: 14.0 }
+    let graphics = graphics(app, window_id);
+    Model {
+        _window_id: window_id,
+        scroll: 14.0,
+        graphics: RefCell::new(graphics),
+    }
 }
 
 fn mouse_wheel(_app: &App, model: &mut Model, dt: MouseScrollDelta, _phase: TouchPhase) {
@@ -85,12 +173,7 @@ fn rotation_zw(angle: f32) -> Mat4 {
         xy.col(1).zwxy())
 }
 
-fn view(app: &App, model: &Model, frame: Frame){
-    frame.clear(PURPLE);
-
-    let window = app.window(model.window_id).unwrap();
-    let win_rect = window.rect();
-    let draw = app.draw();
+fn geometry(app: &App, model: &Model) -> Vec<Vertex> {
     // this could be just bit patterns from 0 to 15
     let verts = [
         // bottom
@@ -176,30 +259,17 @@ fn view(app: &App, model: &Model, frame: Frame){
     let lw = 1.1 + 0.1 * model.scroll.abs();
     let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
     let rotate4d = |p: Vec4| {
-        rotation_xy(app.time) * rotation_zw(1.5*app.time)
+        //rotation_xy(app.time) * rotation_zw(1.5*app.time)
+        rotation_xy(app.mouse.x / 50.0) * rotation_zw(app.mouse.y / 50.0)
             * p
     };
 
     let v = |i: usize| project4d(rotate4d(verts[i]));
-    let mut qua = quads.iter().chain(quads2.iter()).chain(quads3.iter()).enumerate()
+    let qua = quads.iter().chain(quads2.iter()).chain(quads3.iter()).enumerate()
         .map(|(i, q)| {
             ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
         })
     .collect::<Vec<_>>();
-
-    let scale = win_rect.w().min(win_rect.h()) * 0.25;
-    let transform =
-          Mat4::from_scale(Vec3::splat(scale))
-        * Mat4::from_rotation_z(app.time * 0.33)
-        * Mat4::from_rotation_x(app.mouse.y / 100.0)
-        * Mat4::from_rotation_y(app.mouse.x / 100.0);
-    qua.sort_by(|(a, _), (b, _)| {
-        let amid = 0.25 * (a.0 + a.1 + a.2 + a.3);
-        let bmid = 0.25 * (b.0 + b.1 + b.2 + b.3);
-        let za = (transform * amid.extend(1.0)).z;
-        let zb = (transform * bmid.extend(1.0)).z;
-        za.partial_cmp(&zb).unwrap_or(std::cmp::Ordering::Equal)
-    });
     let tri = qua.iter()
         .flat_map(|(q, c)| {
             let c = lin_srgba(c.red, c.green, c.blue, 0.5);
@@ -208,10 +278,157 @@ fn view(app: &App, model: &Model, frame: Frame){
             iter::once(a).chain(iter::once(b))
         })
     .collect::<Vec<_>>();
+    // FIXME color later
+    let verts = tri.iter()
+        .flat_map(|v| v.map_vertices(|(pt, _color)| pt).vertices())
+        .map(|v| Vertex { position: (v.x, v.y, v.z) })
+        .collect::<Vec<_>>();
+    verts
+}
 
-    draw.transform(transform)
-        .mesh()
-        .tris_colored(tri);
+fn view(app: &App, model: &Model, frame: Frame) {
+    frame.clear(PURPLE);
 
-    draw.to_frame(app, &frame).unwrap();
+    let mut g = model.graphics.borrow_mut();
+
+    let frame_size = frame.texture_size();
+    let device = frame.device_queue_pair().device();
+    if frame_size != g.depth_texture.size() {
+        let depth_format = g.depth_texture.format();
+        let sample_count = frame.texture_msaa_samples();
+        g.depth_texture = create_depth_texture(device, frame_size, depth_format, sample_count);
+        g.depth_texture_view = g.depth_texture.view().build();
+    }
+
+    let uniforms = create_uniforms(app.time, frame_size);
+    let new_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: uniforms_as_bytes(&uniforms),
+        usage: wgpu::BufferUsages::COPY_SRC,
+    });
+
+    let geom = geometry(app, model);
+    let mut tris = Tris { data: [Vertex { position: (0.0, 0.0, 0.0) }; 24 * 2 * 3] };
+    tris.data.copy_from_slice(&geom);
+    let new_tris_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: tris_as_bytes(&tris),
+        usage: wgpu::BufferUsages::COPY_SRC,
+    });
+
+    let vert_buffer = device.create_buffer_init(&BufferInitDescriptor {
+        label: None,
+        contents: vertices_as_bytes(&geom),
+        usage: wgpu::BufferUsages::VERTEX,
+    });
+
+    let mut encoder = frame.command_encoder();
+    let uniforms_size = std::mem::size_of::<Uniforms>() as wgpu::BufferAddress;
+    let tris_size = std::mem::size_of::<Tris>() as wgpu::BufferAddress;
+    encoder.copy_buffer_to_buffer(&new_uniform_buffer, 0, &g.uniform_buffer, 0, uniforms_size);
+    encoder.copy_buffer_to_buffer(&new_tris_buffer, 0, &g.tris_buffer, 0, tris_size);
+
+    let mut render_pass = wgpu::RenderPassBuilder::new()
+        .color_attachment(frame.texture_view(), |color| color)
+        .depth_stencil_attachment(&g.depth_texture_view, |depth| depth)
+        .begin(&mut encoder);
+    render_pass.set_bind_group(0, &g.bind_group, &[]);
+    render_pass.set_pipeline(&g.render_pipeline);
+    render_pass.set_vertex_buffer(0, vert_buffer.slice(..));
+    render_pass.draw(0..geom.len() as u32, 0..1);
+}
+
+fn create_uniforms(rotation: f32, [w, h]: [u32; 2]) -> Uniforms {
+    let rotation = Mat4::from_rotation_y(rotation);
+    let fov_y = std::f32::consts::FRAC_PI_2;
+    let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 100.0);
+    let eye = pt3(0.3, 0.3, 2.5);
+    let target = Point3::ZERO;
+    let up = Vec3::Y;
+    let view = Mat4::look_at_rh(eye, target, up);
+    let scale = Mat4::from_scale(Vec3::splat(1.0));
+    Uniforms {
+        world: rotation,
+        view: (view * scale).into(),
+        proj: proj.into(),
+    }
+}
+
+fn create_depth_texture(
+    device: &wgpu::Device,
+    size: [u32; 2],
+    depth_format: wgpu::TextureFormat,
+    sample_count: u32,
+) -> wgpu::Texture {
+    wgpu::TextureBuilder::new()
+        .size(size)
+        .format(depth_format)
+        .usage(wgpu::TextureUsages::RENDER_ATTACHMENT)
+        .sample_count(sample_count)
+        .build(device)
+}
+
+fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    wgpu::BindGroupLayoutBuilder::new()
+        .uniform_buffer(wgpu::ShaderStages::VERTEX_FRAGMENT, false)
+        .storage_buffer(wgpu::ShaderStages::FRAGMENT, false, false)
+        .build(device)
+}
+
+fn create_bind_group(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    uniform_buffer: &wgpu::Buffer,
+    tris_buffer: &wgpu::Buffer,
+) -> wgpu::BindGroup {
+    wgpu::BindGroupBuilder::new()
+        .buffer::<Uniforms>(uniform_buffer, 0..1)
+        .buffer::<Tris>(tris_buffer, 0..1)
+        .build(device, layout)
+}
+
+fn create_pipeline_layout(
+    device: &wgpu::Device,
+    bind_group_layout: &wgpu::BindGroupLayout,
+) -> wgpu::PipelineLayout {
+    let desc = wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[&bind_group_layout],
+        push_constant_ranges: &[],
+    };
+    device.create_pipeline_layout(&desc)
+}
+
+fn create_render_pipeline(
+    device: &wgpu::Device,
+    layout: &wgpu::PipelineLayout,
+    vs_mod: &wgpu::ShaderModule,
+    fs_mod: &wgpu::ShaderModule,
+    dst_format: wgpu::TextureFormat,
+    depth_format: wgpu::TextureFormat,
+    sample_count: u32,
+) -> wgpu::RenderPipeline {
+    wgpu::RenderPipelineBuilder::from_layout(layout, vs_mod)
+        .fragment_shader(&fs_mod)
+        .color_format(dst_format)
+        .color_blend(wgpu::BlendComponent::REPLACE)
+        .alpha_blend(wgpu::BlendComponent::REPLACE)
+        .add_vertex_buffer::<Vertex>(&wgpu::vertex_attr_array![0 => Float32x3])
+        .depth_format(depth_format)
+        .sample_count(sample_count)
+        .build(device)
+}
+
+// see nannou::wgpu::bytes docs, but bytemuch might be suitable today?
+
+fn vertices_as_bytes(data: &[Vertex]) -> &[u8] {
+    unsafe { wgpu::bytes::from_slice(data) }
+}
+
+fn uniforms_as_bytes(uniforms: &Uniforms) -> &[u8] {
+    unsafe { wgpu::bytes::from(uniforms) }
+}
+
+fn tris_as_bytes(tris: &Tris) -> &[u8] {
+    unsafe { wgpu::bytes::from(tris) }
 }
