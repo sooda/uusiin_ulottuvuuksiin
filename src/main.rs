@@ -24,6 +24,7 @@ pub struct Vertex {
 #[derive(Copy, Clone, Debug)]
 pub struct Uniforms {
     world: Mat4,
+    iworld: Mat4,
     view: Mat4,
     proj: Mat4,
 }
@@ -349,8 +350,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
     render_pass.draw(0..geom.len() as u32, 0..1);
 }
 
-fn create_uniforms(rotation: f32, [w, h]: [u32; 2]) -> Uniforms {
-    let rotation = Mat4::from_rotation_y(rotation);
+fn create_uniforms(apptime: f32, [w, h]: [u32; 2]) -> Uniforms {
+    let rotation = Mat4::from_rotation_y(0.2 * apptime);
     let fov_y = std::f32::consts::FRAC_PI_2;
     let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 100.0);
     let eye = pt3(0.3, 0.3, 2.5);
@@ -360,6 +361,7 @@ fn create_uniforms(rotation: f32, [w, h]: [u32; 2]) -> Uniforms {
     let scale = Mat4::from_scale(Vec3::splat(1.0));
     Uniforms {
         world: rotation,
+        iworld: rotation.inverse(),
         view: (view * scale).into(),
         proj: proj.into(),
     }

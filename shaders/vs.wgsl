@@ -1,5 +1,6 @@
 struct Data {
     world: mat4x4f,
+    iworld: mat4x4f,
     view: mat4x4f,
     proj: mat4x4f,
 };

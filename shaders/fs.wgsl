@@ -11,6 +11,7 @@ struct Tris {
 
 struct Data {
     world: mat4x4f,
+    iworld: mat4x4f,
     view: mat4x4f,
     proj: mat4x4f,
 };
@@ -84,14 +85,13 @@ fn intersect_triangle1(orig: vec3f, dir: vec3f, v0: vec3f, v1: vec3f, v2: vec3f)
 
 @fragment
 fn main(@location(0) po: vec3f, @builtin(position) fragcoord: vec4f) -> @location(0) vec4f {
-    let orig = vec3(0.3, 0.3, 2.5);
-    let dir = normalize((uniforms.world * vec4f(po, 1.0)).xyz - orig);
+    let orig = (uniforms.iworld * vec4(0.3, 0.3, 2.5, 1.0)).xyz;
+    let dir = normalize(po - orig);
     var color = vec3f(0.1, 0.0, 0.0);
     for (var i = 0; i < 2 * 24; i++) {
-        // TODO rotate the camera instead of the whole geometry
-        let v0 = (uniforms.world * vec4f(tri(3 * i + 0), 1.0)).xyz;
-        let v1 = (uniforms.world * vec4f(tri(3 * i + 1), 1.0)).xyz;
-        let v2 = (uniforms.world * vec4f(tri(3 * i + 2), 1.0)).xyz;
+        let v0 = tri(3 * i + 0);
+        let v1 = tri(3 * i + 1);
+        let v2 = tri(3 * i + 2);
         let a = intersect_triangle1(orig, dir, v0, v1, v2);
         if a.w != 0.0 && a.x > 0.0 {
             color += vec3f(1.0f / 10.0f) * tric(i);
