@@ -203,24 +203,34 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
         vec4( 1.0,  1.0,  1.0,  1.0),
     ];
     let colors = [
-        AQUA,
-        BLUEVIOLET,
-        CHOCOLATE,
-        DARKCYAN,
-        DARKGOLDENROD,
-        DARKGREEN,
-        DARKORANGE,
-        DARKRED,
-        LIGHTCORAL,
-        MEDIUMORCHID,
-        OLIVE,
-        PALEVIOLETRED,
         REBECCAPURPLE,
-        SADDLEBROWN,
-        SILVER,
-        TURQUOISE,
+        REBECCAPURPLE,
+        REBECCAPURPLE,
+        REBECCAPURPLE,
+        REBECCAPURPLE,
+        REBECCAPURPLE,
+
+        FLORALWHITE,
+        FLORALWHITE,
+        FLORALWHITE,
+        FLORALWHITE,
+        FLORALWHITE,
+        FLORALWHITE,
+
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
+        FORESTGREEN,
     ];
-    let colors: [LinSrgba; 16] = colors.map(|c| c.into_lin_srgba());
+    let colors: [LinSrgba; _] = colors.map(|c| c.into_lin_srgba());
     /*
      * 2 6 (-1, 1)  3 7 (1,  1)
      *
