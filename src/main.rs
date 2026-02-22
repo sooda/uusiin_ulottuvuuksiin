@@ -309,10 +309,19 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
-    if app.time < 4.0 {
-        view_loading(app, model, frame, app.time / 4.0);
-    } else {
-        view_hyper(app, model, frame);
+    let scenes: [(fn(&App, &Model, Frame, f32), f32); 3] = [
+        (view_loading, 1.0),
+        (view_dropping, 1.0),
+        (view_hyper, 1000.0),
+    ];
+    let mut runtime = 0.0;
+    for (sfunc, stime) in scenes {
+        if app.time < runtime + stime {
+            let tick = (app.time - runtime) / stime;
+            sfunc(app, model, frame, tick);
+            break;
+        }
+        runtime += stime;
     }
 }
 
@@ -323,10 +332,11 @@ fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
     let win_rect = window.rect();
     let draw = app.draw();
     {
-        let draw = draw
         // non-square scale would mess up stroke rendering. best effort.
-        .scale_x(win_rect.w())
-        .scale_y(win_rect.w());
+        // TODO: or scale based on min(width, height) and have blank in the too wide direction
+        let draw = draw
+            .scale_x(win_rect.w())
+            .scale_y(win_rect.w());
         draw.rect()
             .no_fill()
             .stroke_color(WHITE)
@@ -348,8 +358,33 @@ fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
     draw.to_frame(app, &frame).unwrap();
 }
 
+fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
+    frame.clear(BLACK);
 
-fn view_hyper(app: &App, model: &Model, frame: Frame) {
+    let window = app.window(model._window_id).unwrap();
+    let win_rect = window.rect();
+    let draw = app.draw();
+    {
+        let draw = draw
+            .scale_x(win_rect.w())
+            .scale_y(win_rect.w());
+        draw.rect()
+            .no_fill()
+            .stroke_color(WHITE)
+            .stroke_weight(0.01)
+            .y(-0.5 * time * time * 540.0 / 960.0)
+            .wh(vec2(0.8, 0.10));
+        draw.rect()
+            .color(rgb(1.0 - time, 1.0 - time, 1.0 - time))
+            // FIXME aspect ratio
+            .y(-0.5 * time * time * 540.0 / 960.0)
+            .wh(vec2(0.8, 0.10));
+    }
+
+    draw.to_frame(app, &frame).unwrap();
+}
+
+fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     let mut g = model.graphics.borrow_mut();
 
     let frame_size = frame.texture_size();
