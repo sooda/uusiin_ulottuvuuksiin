@@ -309,7 +309,47 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
 
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
+    if app.time < 4.0 {
+        view_loading(app, model, frame, app.time / 4.0);
+    } else {
+        view_hyper(app, model, frame);
+    }
+}
 
+fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
+    frame.clear(BLACK);
+
+    let window = app.window(model._window_id).unwrap();
+    let win_rect = window.rect();
+    let draw = app.draw();
+    {
+        let draw = draw
+        // non-square scale would mess up stroke rendering. best effort.
+        .scale_x(win_rect.w())
+        .scale_y(win_rect.w());
+        draw.rect()
+            .no_fill()
+            .stroke_color(WHITE)
+            .stroke_weight(0.01)
+            .wh(vec2(0.8, 0.10));
+        draw.rect()
+            .color(WHITE)
+            .x(0.5 * 0.8 * (time - 1.0))
+            .wh(vec2(time * 0.8, 0.10));
+    }
+    draw.text("the game ;-)  ")
+        .color(BLACK)
+        .font_size(50 * win_rect.h() as u32 / 540)
+        .w(0.8 * win_rect.w())
+        .h(win_rect.h())
+        .justify(nannou::text::Justify::Right)
+        .align_text_middle_y();
+
+    draw.to_frame(app, &frame).unwrap();
+}
+
+
+fn view_hyper(app: &App, model: &Model, frame: Frame) {
     let mut g = model.graphics.borrow_mut();
 
     let frame_size = frame.texture_size();
