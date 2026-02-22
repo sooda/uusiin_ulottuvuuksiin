@@ -4,6 +4,7 @@ struct PackedVec3 {
     z: f32,
 };
 
+const TRIS_N: i32 = 48;
 struct Tris {
     vertices: array<PackedVec3, 144>,
     colors: array<PackedVec3, 48>,
@@ -83,20 +84,37 @@ fn intersect_triangle1(orig: vec3f, dir: vec3f, v0: vec3f, v1: vec3f, v2: vec3f)
     return vec4f(t, u, v, 1.0);
 }
 
+fn trace(orig: vec3f, dir: vec3f) -> vec3f {
+    var color = vec3f(0.05, 0.0, 0.0);
+    var maxdist = 10000.0;
+    // lol, "sort" for transparency
+    for (var i = 0; i < TRIS_N; i++) {
+        var nextdist = 0.0;
+        var nextidx = -1;
+        for (var j = 0; j < TRIS_N; j++) {
+            let v0 = tri(3 * j + 0);
+            let v1 = tri(3 * j + 1);
+            let v2 = tri(3 * j + 2);
+            let a = intersect_triangle1(orig, dir, v0, v1, v2);
+            if a.w != 0.0 && a.x > 0.0 && a.x > nextdist && a.x < maxdist {
+                nextdist = a.x;
+                nextidx = j;
+            }
+        }
+        if nextidx == -1 {
+            break;
+        }
+        maxdist = nextdist;
+
+        let thiscolor = tric(nextidx);
+        color = thiscolor * color + 0.15f * thiscolor;
+    }
+    return color;
+}
+
 @fragment
 fn main(@location(0) po: vec3f, @builtin(position) fragcoord: vec4f) -> @location(0) vec4f {
     let orig = (uniforms.iworld * vec4(0.3, 0.3, 2.5, 1.0)).xyz;
     let dir = normalize(po - orig);
-    var color = vec3f(0.1, 0.0, 0.0);
-    for (var i = 0; i < 2 * 24; i++) {
-        let v0 = tri(3 * i + 0);
-        let v1 = tri(3 * i + 1);
-        let v2 = tri(3 * i + 2);
-        let a = intersect_triangle1(orig, dir, v0, v1, v2);
-        if a.w != 0.0 && a.x > 0.0 {
-            color += vec3f(1.0f / 10.0f) * tric(i);
-        }
-    }
-    let out_color = vec4f(color, 1.0);
-    return out_color;
+    return vec4f(trace(orig, dir), 1.0);
 }
