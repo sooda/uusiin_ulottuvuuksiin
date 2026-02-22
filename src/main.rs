@@ -31,7 +31,8 @@ pub struct Uniforms {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct Tris {
-    data: [Vertex; 144]
+    vertices: [Vertex; 2 * 24 * 3],
+    colors: [Vertex; 2 * 24],
 }
 
 fn main() {
@@ -68,7 +69,10 @@ fn graphics(app: &App, window_id: window::Id) -> Graphics {
         contents: uniforms_as_bytes(&uniforms),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     });
-    let tris = Tris { data: [Vertex { position: (0.0, 0.0, 0.0) }; 24 * 2 * 3] };
+    let tris = Tris {
+        vertices: [Vertex { position: (0.0, 0.0, 0.0) }; _],
+        colors: [Vertex { position: (0.0, 0.0, 0.0) }; _],
+    };
     let tris_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: None,
         contents: tris_as_bytes(&tris),
@@ -173,7 +177,7 @@ fn rotation_zw(angle: f32) -> Mat4 {
         xy.col(1).zwxy())
 }
 
-fn geometry(app: &App, model: &Model) -> Vec<Vertex> {
+fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
     // this could be just bit patterns from 0 to 15
     let verts = [
         // bottom
@@ -278,12 +282,15 @@ fn geometry(app: &App, model: &Model) -> Vec<Vertex> {
             iter::once(a).chain(iter::once(b))
         })
     .collect::<Vec<_>>();
-    // FIXME color later
     let verts = tri.iter()
         .flat_map(|v| v.map_vertices(|(pt, _color)| pt).vertices())
         .map(|v| Vertex { position: (v.x, v.y, v.z) })
         .collect::<Vec<_>>();
-    verts
+    let colors = tri.iter()
+        .flat_map(|v| v.map_vertices(|(_pt, color)| color).vertices().take(1))
+        .map(|v| Vertex { position: (v.red, v.green, v.blue) })
+        .collect::<Vec<_>>();
+    (verts, colors)
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -307,9 +314,13 @@ fn view(app: &App, model: &Model, frame: Frame) {
         usage: wgpu::BufferUsages::COPY_SRC,
     });
 
-    let geom = geometry(app, model);
-    let mut tris = Tris { data: [Vertex { position: (0.0, 0.0, 0.0) }; 24 * 2 * 3] };
-    tris.data.copy_from_slice(&geom);
+    let (geom, colors) = geometry(app, model);
+    let mut tris = Tris {
+        vertices: [Vertex { position: (0.0, 0.0, 0.0) }; _],
+        colors: [Vertex { position: (1.0, 0.0, 0.0) }; _],
+    };
+    tris.vertices.copy_from_slice(&geom);
+    tris.colors.copy_from_slice(&colors);
     let new_tris_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: None,
         contents: tris_as_bytes(&tris),

@@ -5,7 +5,8 @@ struct PackedVec3 {
 };
 
 struct Tris {
-    vertices: array<PackedVec3>,
+    vertices: array<PackedVec3, 144>,
+    colors: array<PackedVec3, 48>,
 };
 
 struct Data {
@@ -21,6 +22,11 @@ var<storage, read> geometry: Tris;
 
 fn tri(i: i32) -> vec3f {
     let v = geometry.vertices[i];
+    return vec3f(v.x, v.y, v.z);
+}
+
+fn tric(i: i32) -> vec3f {
+    let v = geometry.colors[i];
     return vec3f(v.x, v.y, v.z);
 }
 
@@ -88,7 +94,7 @@ fn main(@location(0) po: vec3f, @builtin(position) fragcoord: vec4f) -> @locatio
         let v2 = (uniforms.world * vec4f(tri(3 * i + 2), 1.0)).xyz;
         let a = intersect_triangle1(orig, dir, v0, v1, v2);
         if a.w != 0.0 && a.x > 0.0 {
-            color += vec3f(1.0f / 24.0f);
+            color += vec3f(1.0f / 10.0f) * tric(i);
         }
     }
     let out_color = vec4f(color, 1.0);
