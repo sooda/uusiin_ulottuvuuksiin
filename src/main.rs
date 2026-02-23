@@ -126,7 +126,7 @@ fn model(app: &App) -> Model {
 
     let audio_host = audio::Host::new();
     let mut gli = GliEngine::new();
-    gli.update_with_code(r#"o: sin 440"#);
+    gli.update_with_code(r#"bass: speed 2.0 >> seq 40_40 45 50 >> sawsynth 0.01 0.1"#);
 
     let mut amodel = AudioModel { gli, samples: VecDeque::new() };
 
