@@ -2,8 +2,11 @@ use nannou::prelude::*;
 use nannou::geom::Tri;
 use nannou::glam::Vec4Swizzles;
 use nannou::color::IntoLinSrgba;
+use nannou_audio as audio;
 use std::iter;
 use std::cell::RefCell;
+use glicol;
+use std::collections::VecDeque;
 
 struct Graphics {
     uniform_buffer: wgpu::Buffer,
@@ -36,16 +39,24 @@ pub struct Tris {
     colors: [Vertex; 2 * 24],
 }
 
-fn main() {
-    nannou::app(model)
-        .update(update)
-        .run();
+type GliEngine = glicol::Engine::<128>;
+
+struct AudioModel {
+    gli: GliEngine,
+    samples: VecDeque<f32>,
 }
 
 struct Model {
     _window_id: window::Id,
     scroll: f32,
     graphics: RefCell<Graphics>,
+    _astream: audio::Stream<AudioModel>,
+}
+
+fn main() {
+    nannou::app(model)
+        .update(update)
+        .run();
 }
 
 fn graphics(app: &App, window_id: window::Id) -> Graphics {
@@ -111,11 +122,49 @@ fn model(app: &App) -> Model {
         .build()
         .unwrap();
 
-    let graphics = graphics(app, window_id);
+    let graphics = RefCell::new(graphics(app, window_id));
+
+    let audio_host = audio::Host::new();
+    let mut gli = GliEngine::new();
+    gli.update_with_code(r#"o: sin 440"#);
+
+    let mut amodel = AudioModel { gli, samples: VecDeque::new() };
+
+    let sr = audio_host.default_output_device()
+        .expect("No audio output devices?")
+        .default_output_config()
+        .expect("No audio output stream config?")
+        .sample_rate().0 as usize;
+    amodel.gli.set_sr(sr);
+
+    let astream = audio_host
+        .new_output_stream(amodel)
+        .render(audio)
+        .build()
+        .unwrap();
+
+    astream.play().unwrap();
+
     Model {
         _window_id: window_id,
         scroll: 14.0,
-        graphics: RefCell::new(graphics),
+        graphics,
+        _astream: astream,
+    }
+}
+
+fn audio(audio: &mut AudioModel, buffer: &mut audio::Buffer) {
+    for frame in buffer.frames_mut() {
+        if audio.samples.is_empty() {
+            let block = audio.gli.next_block(vec![]);
+            for &sample in block.0[0].iter() {
+                audio.samples.push_back(sample);
+            }
+        }
+        let sample = audio.samples.pop_front().expect("no chance");
+        for channel in frame {
+            *channel = sample;
+        }
     }
 }
 
