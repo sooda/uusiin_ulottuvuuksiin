@@ -130,15 +130,17 @@ fn model(app: &App) -> Model {
 
     let mut amodel = AudioModel { gli, samples: VecDeque::new() };
 
-    let sr = audio_host.default_output_device()
+    // TODO some day
+    let _sr = audio_host.default_output_device()
         .expect("No audio output devices?")
         .default_output_config()
         .expect("No audio output stream config?")
         .sample_rate().0 as usize;
-    amodel.gli.set_sr(sr);
+    amodel.gli.set_sr(44100); // that's the default as of writing but just to be safe
 
     let astream = audio_host
         .new_output_stream(amodel)
+        .sample_rate(44100)
         .render(audio)
         .build()
         .expect("cannot make audio output stream");
