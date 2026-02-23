@@ -6,3 +6,5 @@ authors = ["Konsta Hölttä <sooda@iki.fi>"]
 
 [dependencies]
 nannou = "0.19"
+nannou_audio = "0.19"
+glicol = "0.13"
