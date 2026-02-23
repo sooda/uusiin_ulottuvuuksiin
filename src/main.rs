@@ -60,7 +60,7 @@ fn main() {
 }
 
 fn graphics(app: &App, window_id: window::Id) -> Graphics {
-    let window = app.window(window_id).unwrap();
+    let window = app.window(window_id).expect("where did our window go?");
     let device = window.device();
     let format = Frame::TEXTURE_FORMAT;
     let depth_format = wgpu::TextureFormat::Depth32Float;
@@ -120,7 +120,7 @@ fn model(app: &App) -> Model {
         .view(view)
         .mouse_wheel(mouse_wheel)
         .build()
-        .unwrap();
+        .expect("cannot build app window");
 
     let graphics = RefCell::new(graphics(app, window_id));
 
@@ -141,9 +141,9 @@ fn model(app: &App) -> Model {
         .new_output_stream(amodel)
         .render(audio)
         .build()
-        .unwrap();
+        .expect("cannot make audio output stream");
 
-    astream.play().unwrap();
+    astream.play().expect("cannot play audio stream");
 
     Model {
         _window_id: window_id,
@@ -378,7 +378,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
 fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let window = app.window(model._window_id).unwrap();
+    let window = app.window(model._window_id).expect("where did our window go?");
     let win_rect = window.rect();
     let draw = app.draw();
     {
@@ -405,13 +405,13 @@ fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
         .justify(nannou::text::Justify::Right)
         .align_text_middle_y();
 
-    draw.to_frame(app, &frame).unwrap();
+    draw.to_frame(app, &frame).expect("draw fail");
 }
 
 fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let window = app.window(model._window_id).unwrap();
+    let window = app.window(model._window_id).expect("where did our window go?");
     let win_rect = window.rect();
     let draw = app.draw();
     {
@@ -431,13 +431,13 @@ fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
             .wh(vec2(0.8, 0.10));
     }
 
-    draw.to_frame(app, &frame).unwrap();
+    draw.to_frame(app, &frame).expect("draw fail");
 }
 
 fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let window = app.window(model._window_id).unwrap();
+    let window = app.window(model._window_id).expect("where did our window go?");
     let win_rect = window.rect();
     let draw = app.draw();
     {
@@ -465,7 +465,7 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
             .wh(vec2(sz, sz));
     }
 
-    draw.to_frame(app, &frame).unwrap();
+    draw.to_frame(app, &frame).expect("draw fail");
 }
 
 fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
