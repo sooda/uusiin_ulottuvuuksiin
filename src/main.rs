@@ -7,6 +7,16 @@ use std::iter;
 use std::cell::RefCell;
 use glicol;
 use std::collections::VecDeque;
+use std::f32::consts::FRAC_PI_2;
+
+// Design ratio as
+// x/y. On window mismatch,
+// fit it to the screen.
+//
+// ("Non-square" scale, i.e., -1 to 1 both horizontally and vertically, would mess up stroke width
+// rendering, square sides of 1.0, etc. for a non-square window. Best effort. We'll want height as
+// -1 to 1 and width as AR, so that an unit circle centered on the screen does not clip.
+const AR: f32 = 16.0 / 9.0;
 
 struct Graphics {
     uniform_buffer: wgpu::Buffer,
@@ -361,8 +371,8 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
     let scenes: [(fn(&App, &Model, Frame, f32), f32); _] = [
-        (view_loading, 0.5),
-        (view_dropping, 0.5),
+        (view_loading, 0.3*2.0),
+        (view_dropping, 0.3*1.0),
         (view_walking, 100.0),
         (view_hyper, 1000.0),
     ];
@@ -377,35 +387,55 @@ fn view(app: &App, model: &Model, frame: Frame) {
     }
 }
 
-fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
-    frame.clear(BLACK);
-
+// Normally, (w,h) square fills the screen. make it ([-AR..AR], [-1..1]) for AR'd screen.
+// Normally, stroke weight S is S pixels wide. make it proportional to screen height.
+// For non-exact aspect ratio window, have padding on either side in extra dimension.
+//
+// Can't just scale the viewport to (-1, 1) because line weight would scale as well!
+//
+// TODO finally clip somehow, maybe just draw them blanks on top lol
+//
+// - draw is the original
+// - d is scaled for viewport
+// - s scales vec2(1, 1) to top right corner at vec2(AR, 1)
+// - r is the viewport height in pixels, AR * r is viewport width in pixels
+fn draw_viewported(app: &App, model: &Model) -> (Draw, Draw, Mat2, f32) {
     let window = app.window(model._window_id).expect("where did our window go?");
     let win_rect = window.rect();
+    let arw = win_rect.w() / win_rect.h();
     let draw = app.draw();
-    {
-        // non-square scale would mess up stroke rendering. best effort.
-        // TODO: or scale based on min(width, height) and have blank in the too wide direction
-        let draw = draw
-            .scale_x(win_rect.w())
-            .scale_y(win_rect.w());
-        draw.rect()
-            .no_fill()
-            .stroke_color(WHITE)
-            .stroke_weight(0.01)
-            .wh(vec2(0.8, 0.10));
-        draw.rect()
-            .color(WHITE)
-            .x(0.5 * 0.8 * (time - 1.0))
-            .wh(vec2(time * 0.8, 0.10));
-    }
+    let r = if arw > AR {
+        // wide window
+        win_rect.h()
+        // or, win_rect.w() / arw
+    } else {
+        // narrow window
+        win_rect.w() / AR
+        // or, win_rect.h() * arw / AR
+    };
+    let d = draw.scale(r);
+    let s = mat2(vec2(AR, 0.0), vec2(0.0, 1.0));
+    (draw, d, s, r)
+}
+
+fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
+    frame.clear(BLACK);
+    let (draw, d, s, r) = draw_viewported(app, model);
+    let (w, h) = (0.8, 0.1);
+    d.rect()
+        .no_fill()
+        .stroke_color(WHITE)
+        .stroke_weight(0.01)
+        .wh(s * vec2(w, h));
+    d.rect()
+        .color(WHITE)
+        .xy(s * vec2(0.5 * w * (time - 1.0), 0.0))
+        .wh(s * vec2(time * w, h));
     draw.text("the game ;-)  ")
         .color(BLACK)
-        .font_size(50 * win_rect.h() as u32 / 540)
-        .w(0.8 * win_rect.w())
-        .h(win_rect.h())
-        .justify(nannou::text::Justify::Right)
-        .align_text_middle_y();
+        .font_size((0.06 * r) as u32)
+        .w(w * AR * r)
+        .right_justify();
 
     draw.to_frame(app, &frame).expect("draw fail");
 }
@@ -413,25 +443,20 @@ fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
 fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let window = app.window(model._window_id).expect("where did our window go?");
-    let win_rect = window.rect();
-    let draw = app.draw();
-    {
-        let draw = draw
-            .scale_x(win_rect.w())
-            .scale_y(win_rect.w());
-        draw.rect()
-            .no_fill()
-            .stroke_color(WHITE)
-            .stroke_weight(0.01)
-            .y(-0.5 * time * time * 540.0 / 960.0)
-            .wh(vec2(0.8, 0.10));
-        draw.rect()
-            .color(rgb(1.0 - time, 1.0 - time, 1.0 - time))
-            // FIXME aspect ratio
-            .y(-0.5 * time * time * 540.0 / 960.0)
-            .wh(vec2(0.8, 0.10));
-    }
+    let (draw, d, s, _r) = draw_viewported(app, model);
+    let (w, h) = (0.8, 0.1);
+    let wh = vec2(w, h);
+    let y = -0.5 * time * time * (1.0 - 0.5 * h);
+    d.rect()
+        .no_fill()
+        .stroke_color(WHITE)
+        .stroke_weight(0.01)
+        .y(y)
+        .wh(s * wh);
+    d.rect()
+        .color(rgb(1.0 - time, 1.0 - time, 1.0 - time))
+        .y(y)
+        .wh(s * wh);
 
     draw.to_frame(app, &frame).expect("draw fail");
 }
@@ -439,95 +464,83 @@ fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
 fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let window = app.window(model._window_id).expect("where did our window go?");
-    let win_rect = window.rect();
-    let draw = app.draw();
+    let (draw, d, s, _r) = draw_viewported(app, model);
+    // grid
     {
-        // grid
-        {
-            let draw = draw
-                .scale_x(win_rect.h())
-                .scale_y(win_rect.h());
-            let aspect_ratio = win_rect.w() as f32 / win_rect.h() as f32;
-            let fov_y = std::f32::consts::FRAC_PI_2;
-            let near = 0.01;
-            let far = 10000.0;
-            let proj = Mat4::perspective_rh_gl(fov_y, aspect_ratio, near, far);
-            let eye = pt3(0.0, 0.0, 1.0);
-            let target = pt3(0.0, 0.0, 0.0);
-            let up = Vec3::Y;
-            let view = Mat4::look_at_rh(eye, target, up);
-            let pv = proj * view;
-            let sqsz = 0.8;
-            let horiz = (0..100).map(|i| {
-                let z = sqsz * i as f32;
-                (vec4(-100.0,  1.0, z, 1.0),
-                 vec4( 100.0,  1.0, z, 1.0))
-            });
-            let vert = (-100..100).map(|i| {
-                let x = sqsz * i as f32;
-                (vec4(x, -1.0, -2.0, 1.0),
-                 vec4(x, -1.0, 1.0e6, 1.0))
-            });
-            for (a, b) in horiz.chain(vert) {
-                let a = pv * a;
-                let b = pv * b;
-                draw.line()
-                    .start(1.0 / a.w * a.xy())
-                    .end(1.0 / b.w * b.xy())
-                    .weight(0.001)
-                    .color(MAGENTA);
-            }
+        // TODO eye starts to follow the walking box
+        //let eye = pt3(0.0, 0.0, 0.0);
+        //let target = pt3(0.0, 0.0, -1.0);
+        //let view = Mat4::look_at_rh(eye, target, Vec3::Y);
+        let proj = Mat4::perspective_rh_gl(FRAC_PI_2, AR, 0.01, 1.0e6);
+        let view = Mat4::IDENTITY;
+        let pv = proj * view;
+        let sqsz = 1.8;
+        let horiz = (0..100).map(|i| {
+            let z = -sqsz * i as f32;
+            (vec4(-100.0, -1.0, z, 1.0),
+             vec4( 100.0, -1.0, z, 1.0))
+        });
+        let vert = (-100..100).map(|i| {
+            let x = sqsz * i as f32;
+            (vec4(x, -1.0, -1.0, 1.0),
+             vec4(x, -1.0, 1.0e6, 1.0))
+        });
+        for (a, b) in horiz.chain(vert) {
+            let a = pv * a;
+            let b = pv * b;
+            d.line()
+                .start(1.0 / a.w * a.xy())
+                .end(1.0 / b.w * b.xy())
+                .weight(0.001)
+                .color(MAGENTA);
         }
-        // mountains
-        {
-            let rnd = |i: f32| ((i * 37.0).sin() * 71551.0).sin();
-            let rndb = |i: f32| rnd(i) > 0.0;
-            let draw = draw
-                .scale_x(win_rect.w())
-                .scale_y(win_rect.h())
-                .y(-0.00)
-                ;
-            for &sz in [10, 20, 50, 100].iter() {
-                let geom = (0..2*sz).filter(|&i| rndb(i as f32))
-                    .map(|i| {
-                        let fx = |x: i32| -1.0 + 2.0 * (x as f32 / sz as f32) / 2.0;
-                        let x0 = fx(i);
-                        let x1 = fx(i + 2);
-                        //let y0 = 1.0 / sz as f32;
-                        let y0 = 0.0;
-                        let y1 = 2.0 / sz as f32;
-                        //let y1 = 1.0 / sz as f32;
-                        let c = rgba(1.0, 0.0, 1.0, 0.2);
-                        Tri::from_vertices([
-                            (vec3(x0, y0, 0.0), c),
-                            (vec3((x0 + x1) / 2.0, y1, 0.0), c),
-                            (vec3(x1, y0, 0.0), c)
-                        ]).expect("3 is not 3 in this universe")
-                    });
-                draw.mesh().tris_colored(geom);
-            }
-            let fix_aliasing = 0.03;
-            draw.rect()
-                .x(0.0).y(-fix_aliasing / 2.0)
-                .w(1.0).h(fix_aliasing)
-                .color(MAGENTA)
-                ;
+    }
+    // mountains
+    {
+        // TODO real rand
+        let rnd = |i: f32| ((i * 37.0).sin() * 71551.0).sin();
+        let rndb = |i: f32| rnd(i) > 0.0;
+        for &sz in [10, 20, 50, 100].iter() {
+            let geom = (0..2*sz).filter(|&i| rndb(i as f32))
+                .map(|i| {
+                    let fx = |x: i32| -1.0 + 2.0 * (x as f32 / sz as f32) / 2.0;
+                    let x0 = fx(i);
+                    let x1 = fx(i + 2);
+                    //let y0 = 1.0 / sz as f32;
+                    let y0 = 0.0;
+                    let y1 = 2.0 / sz as f32;
+                    //let y1 = 1.0 / sz as f32;
+                    let c = rgba(1.0, 0.0, 1.0, 0.2);
+                    Tri::from_vertices([
+                        (vec3(x0, y0, 0.0), c),
+                        (vec3((x0 + x1) / 2.0, y1, 0.0), c),
+                        (vec3(x1, y0, 0.0), c)
+                    ]).expect("3 is not 3 in this universe")
+                });
+            d.mesh().tris_colored(geom);
         }
+        // TODO debug box. maybe just draw the mountains closer to the grid
+        let fix_aliasing = 0.03;
+        d.rect()
+            .no_fill()
+            .x(0.0).y(-fix_aliasing / 2.0)
+            .w(AR).h(fix_aliasing)
+            .stroke_weight(0.01)
+            .stroke_color(BLUE)
+            ;
+    }
 
-        let pi2 = std::f32::consts::FRAC_PI_2;
-        let tick = 1.1*100.0 * time * pi2;
-        let ftick = tick % pi2;
-        let itick = (tick - ftick) / pi2;
+    // main character
+    {
+        let tick = 1.1*100.0 * time * FRAC_PI_2;
+        let ftick = tick % FRAC_PI_2;
+        let itick = (tick - ftick) / FRAC_PI_2;
 
         let sz = 0.2;
         let ypos = -0.2;
         let xpos = -0.5;
 
-        let draw = draw
-            .scale_x(win_rect.h())
-            .scale_y(win_rect.h());
-        draw
+        d
             .x(itick * sz + xpos)
             .y(ypos)
             .z_radians(-ftick)
