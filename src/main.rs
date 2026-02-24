@@ -443,6 +443,78 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
     let win_rect = window.rect();
     let draw = app.draw();
     {
+        // grid
+        {
+            let draw = draw
+                .scale_x(win_rect.h())
+                .scale_y(win_rect.h());
+            let aspect_ratio = win_rect.w() as f32 / win_rect.h() as f32;
+            let fov_y = std::f32::consts::FRAC_PI_2;
+            let near = 0.01;
+            let far = 10000.0;
+            let proj = Mat4::perspective_rh_gl(fov_y, aspect_ratio, near, far);
+            let eye = pt3(0.0, 0.0, 1.0);
+            let target = pt3(0.0, 0.0, 0.0);
+            let up = Vec3::Y;
+            let view = Mat4::look_at_rh(eye, target, up);
+            let pv = proj * view;
+            let sqsz = 0.8;
+            let horiz = (0..100).map(|i| {
+                let z = sqsz * i as f32;
+                (vec4(-100.0,  1.0, z, 1.0),
+                 vec4( 100.0,  1.0, z, 1.0))
+            });
+            let vert = (-100..100).map(|i| {
+                let x = sqsz * i as f32;
+                (vec4(x, -1.0, -2.0, 1.0),
+                 vec4(x, -1.0, 1.0e6, 1.0))
+            });
+            for (a, b) in horiz.chain(vert) {
+                let a = pv * a;
+                let b = pv * b;
+                draw.line()
+                    .start(1.0 / a.w * a.xy())
+                    .end(1.0 / b.w * b.xy())
+                    .weight(0.001)
+                    .color(MAGENTA);
+            }
+        }
+        // mountains
+        {
+            let rnd = |i: f32| ((i * 37.0).sin() * 71551.0).sin();
+            let rndb = |i: f32| rnd(i) > 0.0;
+            let draw = draw
+                .scale_x(win_rect.w())
+                .scale_y(win_rect.h())
+                .y(-0.00)
+                ;
+            for &sz in [10, 20, 50, 100].iter() {
+                let geom = (0..2*sz).filter(|&i| rndb(i as f32))
+                    .map(|i| {
+                        let fx = |x: i32| -1.0 + 2.0 * (x as f32 / sz as f32) / 2.0;
+                        let x0 = fx(i);
+                        let x1 = fx(i + 2);
+                        //let y0 = 1.0 / sz as f32;
+                        let y0 = 0.0;
+                        let y1 = 2.0 / sz as f32;
+                        //let y1 = 1.0 / sz as f32;
+                        let c = rgba(1.0, 0.0, 1.0, 0.2);
+                        Tri::from_vertices([
+                            (vec3(x0, y0, 0.0), c),
+                            (vec3((x0 + x1) / 2.0, y1, 0.0), c),
+                            (vec3(x1, y0, 0.0), c)
+                        ]).expect("3 is not 3 in this universe")
+                    });
+                draw.mesh().tris_colored(geom);
+            }
+            let fix_aliasing = 0.03;
+            draw.rect()
+                .x(0.0).y(-fix_aliasing / 2.0)
+                .w(1.0).h(fix_aliasing)
+                .color(MAGENTA)
+                ;
+        }
+
         let pi2 = std::f32::consts::FRAC_PI_2;
         let tick = 1.1*100.0 * time * pi2;
         let ftick = tick % pi2;
@@ -482,7 +554,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
         g.depth_texture_view = g.depth_texture.view().build();
     }
 
-    let uniforms = create_uniforms(app.time, frame_size);
+    let uniforms = create_uniforms(time, frame_size);
     let new_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
         label: None,
         contents: uniforms_as_bytes(&uniforms),
