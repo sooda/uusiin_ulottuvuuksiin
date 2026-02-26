@@ -468,6 +468,7 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
     {
         let sqsz = 1.8;
         let mountain_distance = 20.0; // square units
+        let ground_y = -4.0; // camera at 0
         // grid
 
         // TODO eye starts to follow the walking box
@@ -484,13 +485,13 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
         };
         let horiz = (0..=mountain_distance as i32).map(|i| {
             let z = -sqsz * i as f32;
-            (vec3(-50.0, -1.0, z),
-             vec3( 50.0, -1.0, z))
+            (vec3(-50.0, ground_y, z),
+             vec3( 50.0, ground_y, z))
         });
         let vert = (-50..50).map(|i| {
             let x = sqsz * i as f32;
-            (vec3(x, -1.0, -1.0),
-             vec3(x, -1.0, -mountain_distance * sqsz))
+            (vec3(x, ground_y, -1.0),
+             vec3(x, ground_y, -mountain_distance * sqsz))
         });
         for (a, b) in horiz.chain(vert) {
             d.line()
@@ -513,7 +514,7 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
                     let fx = |x: i32| (sz + x * sz) as f32;
                     let x0 = fx(i);
                     let x1 = fx(i + 2);
-                    let y0 = -1.0;
+                    let y0 = ground_y;
                     let y1 = 0.9 * sz as f32;
                     let c = rgba(1.0, 0.0, 1.0, 0.2);
                     Tri::from_vertices([
