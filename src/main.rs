@@ -10,6 +10,7 @@ use nannou::{
     glam::{Vec3Swizzles, Vec4Swizzles},
     color::IntoLinSrgba,
     rand::{RngCore, rngs::SmallRng, SeedableRng},
+    ease,
 };
 use nannou_audio as audio;
 use glicol;
@@ -376,8 +377,9 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
     let scenes: [(fn(&App, &Model, Frame, f32), f32); _] = [
-        (view_loading, 0.3*2.0),
-        (view_dropping, 0.3*1.0),
+        (view_loading, 2.0),
+        (view_dropping, 1.5),
+        (view_undrop, 2.5),
         (view_walking, 100.0),
         (view_hyper, 1000.0),
     ];
@@ -427,6 +429,8 @@ fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
     let (draw, d, s, r) = draw_viewported(app, model);
     let (w, h) = (0.8, 0.1);
+    // t, from, distance, duration
+    let eas = ease::quad::ease_in(time, 0.0, 1.0, 1.0);
     d.rect()
         .no_fill()
         .stroke_color(WHITE)
@@ -434,9 +438,9 @@ fn view_loading(app: &App, model: &Model, frame: Frame, time: f32) {
         .wh(s * vec2(w, h));
     d.rect()
         .color(WHITE)
-        .xy(s * vec2(0.5 * w * (time - 1.0), 0.0))
-        .wh(s * vec2(time * w, h));
-    draw.text("the game ;-)  ")
+        .xy(s * vec2(0.5 * w * (eas - 1.0), 0.0))
+        .wh(s * vec2(eas * w, h));
+    draw.text("the game ;-)     ")
         .color(BLACK)
         .font_size((0.06 * r) as u32)
         .w(w * AR * r)
@@ -451,7 +455,7 @@ fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
     let (draw, d, s, _r) = draw_viewported(app, model);
     let (w, h) = (0.8, 0.1);
     let wh = vec2(w, h);
-    let y = -0.5 * time * time * (1.0 - 0.5 * h);
+    let y = (-0.5 + 0.5 * h) * time * time;
     d.rect()
         .no_fill()
         .stroke_color(WHITE)
@@ -462,6 +466,33 @@ fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
         .color(rgb(1.0 - time, 1.0 - time, 1.0 - time))
         .y(y)
         .wh(s * wh);
+
+    draw.to_frame(app, &frame).expect("draw fail");
+}
+
+fn view_undrop(app: &App, model: &Model, frame: Frame, time: f32) {
+    frame.clear(BLACK);
+
+    let (draw, d, _s, _r) = draw_viewported(app, model);
+    let emit = 1.0 - time;
+    let ew = ease::cubic::ease_in_out(time, AR * 0.8, 0.2 - AR * 0.8, 1.0);
+    let eh = ease::cubic::ease_in_out(time, 0.1, 0.2 - 0.1, 1.0);
+    let (w, h) = (ew, eh);
+    let wh = vec2(w, h);
+    let xdest = -0.5 - 0.5*0.2;
+    let ydest = -0.2 + 0.5*0.2;
+    let y0 = -0.5 + 0.5 * 0.1;
+    let x = ease::cubic::ease_in_out(time, 0.0, xdest, 1.0);
+    let y = ydest + (y0 - ydest) * emit * emit;
+    let rot = ease::back::ease_in_out(time, 0.0, FRAC_PI_2, 1.0);
+    let xy = vec2(x, y);
+    d.rect()
+        .no_fill()
+        .stroke_color(WHITE)
+        .stroke_weight(0.01)
+        .z_radians(rot)
+        .xy(xy)
+        .wh(wh);
 
     draw.to_frame(app, &frame).expect("draw fail");
 }
