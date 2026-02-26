@@ -132,9 +132,10 @@ fn graphics(app: &App, window_id: window::Id) -> Graphics {
 
 fn model(app: &App) -> Model {
     let window_id = app.new_window()
-        .size(960, 540)
+        .size(1920, 1080)
         .view(view)
         .mouse_wheel(mouse_wheel)
+        .fullscreen()
         .build()
         .expect("cannot build app window");
 
