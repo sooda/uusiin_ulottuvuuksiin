@@ -1,6 +1,6 @@
 use nannou::prelude::*;
 use nannou::geom::Tri;
-use nannou::glam::Vec4Swizzles;
+use nannou::glam::{Vec3Swizzles, Vec4Swizzles};
 use nannou::color::IntoLinSrgba;
 use nannou_audio as audio;
 use std::iter;
@@ -464,70 +464,66 @@ fn view_dropping(app: &App, model: &Model, frame: Frame, time: f32) {
 fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let (draw, d, s, _r) = draw_viewported(app, model);
-    // grid
+    let (draw, d, _s, _r) = draw_viewported(app, model);
     {
+        let sqsz = 1.8;
+        let mountain_distance = 20.0; // square units
+        // grid
+
         // TODO eye starts to follow the walking box
         //let eye = pt3(0.0, 0.0, 0.0);
         //let target = pt3(0.0, 0.0, -1.0);
         //let view = Mat4::look_at_rh(eye, target, Vec3::Y);
-        let proj = Mat4::perspective_rh_gl(FRAC_PI_2, AR, 0.01, 1.0e6);
+        let proj = Mat4::perspective_rh_gl(FRAC_PI_2, AR, 0.01, 1.0e4);
         let view = Mat4::IDENTITY;
         let pv = proj * view;
-        let sqsz = 1.8;
-        let horiz = (0..100).map(|i| {
+        // "transform"
+        let xf = |p: Vec3| {
+            let a = pv * p.extend(1.0);
+            (1.0 / a.w * a).xyz()
+        };
+        let horiz = (0..=mountain_distance as i32).map(|i| {
             let z = -sqsz * i as f32;
-            (vec4(-100.0, -1.0, z, 1.0),
-             vec4( 100.0, -1.0, z, 1.0))
+            (vec3(-50.0, -1.0, z),
+             vec3( 50.0, -1.0, z))
         });
-        let vert = (-100..100).map(|i| {
+        let vert = (-50..50).map(|i| {
             let x = sqsz * i as f32;
-            (vec4(x, -1.0, -1.0, 1.0),
-             vec4(x, -1.0, 1.0e6, 1.0))
+            (vec3(x, -1.0, -1.0),
+             vec3(x, -1.0, -mountain_distance * sqsz))
         });
         for (a, b) in horiz.chain(vert) {
-            let a = pv * a;
-            let b = pv * b;
             d.line()
-                .start(1.0 / a.w * a.xy())
-                .end(1.0 / b.w * b.xy())
+                .start(xf(a).xy())
+                .end(xf(b).xy())
                 .weight(0.001)
                 .color(MAGENTA);
         }
-    }
-    // mountains
-    {
+
+        // mountains
+
         // TODO real rand
+        // TODO bright edges might make this better
+        // TODO bright blue horizon thing
         let rnd = |i: f32| ((i * 37.0).sin() * 71551.0).sin();
-        let rndb = |i: f32| rnd(i) > 0.0;
-        for &sz in [10, 20, 50, 100].iter() {
-            let geom = (0..2*sz).filter(|&i| rndb(i as f32))
+        let rndb = |i: f32, prob: f32| rnd(i) < prob;
+        for &sz in [1i32, 3, 5, 11, 23].iter() {
+            let geom = (-100..100).step_by(sz as usize).filter(|&i| rndb(i as f32, 0.8))
                 .map(|i| {
-                    let fx = |x: i32| -1.0 + 2.0 * (x as f32 / sz as f32) / 2.0;
+                    let fx = |x: i32| (sz + x * sz) as f32;
                     let x0 = fx(i);
                     let x1 = fx(i + 2);
-                    //let y0 = 1.0 / sz as f32;
-                    let y0 = 0.0;
-                    let y1 = 2.0 / sz as f32;
-                    //let y1 = 1.0 / sz as f32;
+                    let y0 = -1.0;
+                    let y1 = 0.9 * sz as f32;
                     let c = rgba(1.0, 0.0, 1.0, 0.2);
                     Tri::from_vertices([
-                        (vec3(x0, y0, 0.0), c),
-                        (vec3((x0 + x1) / 2.0, y1, 0.0), c),
-                        (vec3(x1, y0, 0.0), c)
+                        (xf(vec3(x0, y0, -mountain_distance * sqsz)), c),
+                        (xf(vec3(0.5 * (x0 + x1), y1, -mountain_distance * sqsz)), c),
+                        (xf(vec3(x1, y0, -mountain_distance * sqsz)), c)
                     ]).expect("3 is not 3 in this universe")
                 });
             d.mesh().tris_colored(geom);
         }
-        // TODO debug box. maybe just draw the mountains closer to the grid
-        let fix_aliasing = 0.03;
-        d.rect()
-            .no_fill()
-            .x(0.0).y(-fix_aliasing / 2.0)
-            .w(AR).h(fix_aliasing)
-            .stroke_weight(0.01)
-            .stroke_color(BLUE)
-            ;
     }
 
     // main character
@@ -544,7 +540,7 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
             .x(itick * sz + xpos)
             .y(ypos)
             .z_radians(-ftick)
-            .translate(vec3(-0.5 * sz, 0.5 * sz, 0.0))
+            .translate(vec3(-0.5 * sz, 0.5 * sz, 1.0))
             .rect()
             .no_fill()
             .stroke_color(WHITE)
