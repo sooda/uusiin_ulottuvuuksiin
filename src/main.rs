@@ -1,13 +1,18 @@
-use nannou::prelude::*;
-use nannou::geom::Tri;
-use nannou::glam::{Vec3Swizzles, Vec4Swizzles};
-use nannou::color::IntoLinSrgba;
+use std::{
+    iter,
+    cell::RefCell,
+    collections::VecDeque,
+    f32::consts::FRAC_PI_2,
+};
+use nannou::{
+    prelude::*,
+    geom::Tri,
+    glam::{Vec3Swizzles, Vec4Swizzles},
+    color::IntoLinSrgba,
+    rand::{RngCore, rngs::SmallRng, SeedableRng},
+};
 use nannou_audio as audio;
-use std::iter;
-use std::cell::RefCell;
 use glicol;
-use std::collections::VecDeque;
-use std::f32::consts::FRAC_PI_2;
 
 // Design ratio as
 // x/y. On window mismatch,
@@ -503,13 +508,13 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
 
         // mountains
 
-        // TODO real rand
         // TODO bright edges might make this better
         // TODO bright blue horizon thing
-        let rnd = |i: f32| ((i * 37.0).sin() * 71551.0).sin();
-        let rndb = |i: f32, prob: f32| rnd(i) < prob;
+        let mut rng = SmallRng::seed_from_u64(31337);
+        let mut rnd = || rng.next_u32() as f32 / std::u32::MAX as f32;
+        let mut rndb = |prob: f32| rnd() < prob;
         for &sz in [1i32, 3, 5, 11, 23].iter() {
-            let geom = (-100..100).step_by(sz as usize).filter(|&i| rndb(i as f32, 0.8))
+            let geom = (-100..100).step_by(sz as usize).filter(|&_| rndb(0.8))
                 .map(|i| {
                     let fx = |x: i32| (sz + x * sz) as f32;
                     let x0 = fx(i);
