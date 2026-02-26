@@ -380,7 +380,8 @@ fn view(app: &App, model: &Model, frame: Frame) {
         (view_loading, 2.0),
         (view_dropping, 1.5),
         (view_undrop, 2.5),
-        (view_walking, 100.0),
+        (view_walking, 20.0),
+        (view_walkoff, 2.0),
         (view_hyper, 1000.0),
     ];
     let mut runtime = 0.0;
@@ -474,13 +475,20 @@ fn view_undrop(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
     let (draw, d, _s, _r) = draw_viewported(app, model);
+
+    mountain_landscape(&d, time, 0.0);
+
+    let sz = 0.11;
+    let ypos = -0.2;
+    let xpos = -0.5;
+
     let emit = 1.0 - time;
-    let ew = ease::cubic::ease_in_out(time, AR * 0.8, 0.2 - AR * 0.8, 1.0);
-    let eh = ease::cubic::ease_in_out(time, 0.1, 0.2 - 0.1, 1.0);
+    let ew = ease::cubic::ease_in_out(time, AR * 0.8, sz - AR * 0.8, 1.0);
+    let eh = ease::cubic::ease_in_out(time, 0.1, sz - 0.1, 1.0);
     let (w, h) = (ew, eh);
     let wh = vec2(w, h);
-    let xdest = -0.5 - 0.5*0.2;
-    let ydest = -0.2 + 0.5*0.2;
+    let xdest = xpos - 0.5*sz;
+    let ydest = ypos + 0.5*sz;
     let y0 = -0.5 + 0.5 * 0.1;
     let x = ease::cubic::ease_in_out(time, 0.0, xdest, 1.0);
     let y = ydest + (y0 - ydest) * emit * emit;
@@ -492,100 +500,121 @@ fn view_undrop(app: &App, model: &Model, frame: Frame, time: f32) {
         .stroke_weight(0.01)
         .z_radians(rot)
         .xy(xy)
+        .z(1.0)
         .wh(wh);
 
     draw.to_frame(app, &frame).expect("draw fail");
 }
 
+fn mountain_landscape(d: &Draw, time: f32, xoff: f32) {
+    let sqsz = 1.8;
+    let mountain_distance = 20.0; // square units
+    let ground_y = -4.0; // camera at 0
+    // grid
+
+    let proj = Mat4::perspective_rh_gl(FRAC_PI_2, AR, 0.01, 1.0e4);
+    let eye = pt3(xoff, 0.0, 0.0);
+    let target = pt3(xoff, 0.0, -1.0);
+    let view = Mat4::look_at_rh(eye, target, Vec3::Y);
+    let pv = proj * view;
+    // "transform"
+    let xf = |p: Vec3| {
+        let a = pv * p.extend(1.0);
+        (1.0 / a.w * a).xyz()
+    };
+    let near = -1.0;
+    let far = -mountain_distance * sqsz;
+    let near = map_range(time, 0.0, 1.0, far, near);
+    let horiz = ((((1.0 - time) * mountain_distance) as i32)..=mountain_distance as i32).map(|i| {
+        let z = -sqsz * i as f32;
+        (vec3(-50.0, ground_y, z),
+         vec3( 50.0, ground_y, z))
+    });
+    let vert = (-50..50).map(|i| {
+        let x = sqsz * i as f32;
+        (vec3(x, ground_y, near),
+         vec3(x, ground_y, far))
+    });
+    for (a, b) in horiz.chain(vert) {
+        d.line()
+            .start(xf(a).xy())
+            .end(xf(b).xy())
+            .weight(0.001)
+            .color(MAGENTA);
+    }
+
+    // mountains
+
+    // TODO bright edges might make this better
+    // TODO bright blue horizon thing
+    let mut rng = SmallRng::seed_from_u64(31337);
+    let mut rnd = || rng.next_u32() as f32 / std::u32::MAX as f32;
+    let mut rndb = |prob: f32| rnd() < prob;
+    for &sz in [1i32, 3, 5, 11, 17, 23].iter() {
+        let geom = (-100..100).step_by(sz as usize).filter(|&_| rndb(0.8))
+            .map(|i| {
+                let fx = |x: i32| (sz + x * sz) as f32;
+                let x0 = fx(i);
+                let x1 = fx(i + 2);
+                let y0 = ground_y;
+                let y1 = ground_y + time * 0.9 * sz as f32;
+                let c = rgba(1.0, 0.0, 1.0, 0.2);
+                Tri::from_vertices([
+                    (xf(vec3(x0, y0, -mountain_distance * sqsz)), c),
+                    (xf(vec3(0.5 * (x0 + x1), y1, -mountain_distance * sqsz)), c),
+                    (xf(vec3(x1, y0, -mountain_distance * sqsz)), c)
+                ]).expect("3 is not 3 in this universe")
+            });
+        d
+            .mesh()
+            .tris_colored(geom);
+    }
+}
+
 fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
+    walking(app, model, frame, time, 0.0);
+}
+
+fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
     frame.clear(BLACK);
 
     let (draw, d, _s, _r) = draw_viewported(app, model);
-    {
-        let sqsz = 1.8;
-        let mountain_distance = 20.0; // square units
-        let ground_y = -4.0; // camera at 0
-        // grid
 
-        // TODO eye starts to follow the walking box
-        //let eye = pt3(0.0, 0.0, 0.0);
-        //let target = pt3(0.0, 0.0, -1.0);
-        //let view = Mat4::look_at_rh(eye, target, Vec3::Y);
-        let proj = Mat4::perspective_rh_gl(FRAC_PI_2, AR, 0.01, 1.0e4);
-        let view = Mat4::IDENTITY;
-        let pv = proj * view;
-        // "transform"
-        let xf = |p: Vec3| {
-            let a = pv * p.extend(1.0);
-            (1.0 / a.w * a).xyz()
-        };
-        let horiz = (0..=mountain_distance as i32).map(|i| {
-            let z = -sqsz * i as f32;
-            (vec3(-50.0, ground_y, z),
-             vec3( 50.0, ground_y, z))
-        });
-        let vert = (-50..50).map(|i| {
-            let x = sqsz * i as f32;
-            (vec3(x, ground_y, -1.0),
-             vec3(x, ground_y, -mountain_distance * sqsz))
-        });
-        for (a, b) in horiz.chain(vert) {
-            d.line()
-                .start(xf(a).xy())
-                .end(xf(b).xy())
-                .weight(0.001)
-                .color(MAGENTA);
-        }
+    let tim = 1.0 * 20.0 * time;
+    let tick = tim * FRAC_PI_2;
+    let ftick = tick % FRAC_PI_2;
+    let itick = (tick - ftick) / FRAC_PI_2;
 
-        // mountains
+    let sz = 0.11;
+    let ypos = -0.2;
+    let xpos = -0.5;
 
-        // TODO bright edges might make this better
-        // TODO bright blue horizon thing
-        let mut rng = SmallRng::seed_from_u64(31337);
-        let mut rnd = || rng.next_u32() as f32 / std::u32::MAX as f32;
-        let mut rndb = |prob: f32| rnd() < prob;
-        for &sz in [1i32, 3, 5, 11, 23].iter() {
-            let geom = (-100..100).step_by(sz as usize).filter(|&_| rndb(0.8))
-                .map(|i| {
-                    let fx = |x: i32| (sz + x * sz) as f32;
-                    let x0 = fx(i);
-                    let x1 = fx(i + 2);
-                    let y0 = ground_y;
-                    let y1 = 0.9 * sz as f32;
-                    let c = rgba(1.0, 0.0, 1.0, 0.2);
-                    Tri::from_vertices([
-                        (xf(vec3(x0, y0, -mountain_distance * sqsz)), c),
-                        (xf(vec3(0.5 * (x0 + x1), y1, -mountain_distance * sqsz)), c),
-                        (xf(vec3(x1, y0, -mountain_distance * sqsz)), c)
-                    ]).expect("3 is not 3 in this universe")
-                });
-            d.mesh().tris_colored(geom);
-        }
-    }
+    let follow_rate = ease::sine::ease_out(time, 0.0, 1.0, 3.5);
 
-    // main character
-    {
-        let tick = 1.1*100.0 * time * FRAC_PI_2;
-        let ftick = tick % FRAC_PI_2;
-        let itick = (tick - ftick) / FRAC_PI_2;
+    let d = d.y(-4.0 * time2);
+    mountain_landscape(&d, 1.0, 3.0 * tim * sz);
+    let d = d.y(8.0 * time2);
 
-        let sz = 0.2;
-        let ypos = -0.2;
-        let xpos = -0.5;
-
-        d
-            .x(itick * sz + xpos)
-            .y(ypos)
-            .z_radians(-ftick)
-            .translate(vec3(-0.5 * sz, 0.5 * sz, 1.0))
-            .rect()
-            .no_fill()
-            .stroke_color(WHITE)
-            .stroke_weight(0.01)
-            .wh(vec2(sz, sz));
-    }
+    d
+        .x(0.9 * follow_rate * -tim * sz)
+        .x(itick * sz + xpos)
+        .y(ypos)
+        .z_radians(-ftick)
+        .translate(vec3(-0.5 * sz, 0.5 * sz, 1.0))
+        .rect()
+        .no_fill()
+        .stroke_color(WHITE)
+        .stroke_weight(0.01)
+        .wh(vec2(sz, sz));
 
     draw.to_frame(app, &frame).expect("draw fail");
+}
+
+fn view_walkoff(app: &App, model: &Model, frame: Frame, time: f32) {
+    frame.clear(BLACK);
+
+    let zip = ease::expo::ease_in(time, 0.0, 1.0, 1.0);
+    walking(app, model, frame, 1.0, zip);
 }
 
 fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
