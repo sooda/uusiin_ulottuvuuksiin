@@ -578,7 +578,7 @@ fn view_walking(app: &App, model: &Model, frame: Frame, time: f32) {
 fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
     frame.clear(BLACK);
 
-    let (draw, d, _s, _r) = draw_viewported(app, model);
+    let (draw, d, _s, r) = draw_viewported(app, model);
 
     let tim = 1.0 * 20.0 * time;
     let tick = tim * FRAC_PI_2;
@@ -606,6 +606,23 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
         .stroke_color(WHITE)
         .stroke_weight(0.01)
         .wh(vec2(sz, sz));
+
+    let msg = "get ready for 2026-06-05 to 2026-06-07 ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ profit";
+    let t = -3.14*1.5 * time;
+    for (i, ch) in msg.chars().enumerate() {
+        let mut buf = [0u8; 4];
+        let s = ch.encode_utf8(&mut buf);
+        let x = r * (0.4 * AR + 0.03 * i as f32 + t);
+        let dy = (0.01 * x).sin() * 0.1;
+        draw
+            .z(1.0)
+            .x(x - time2 * r * AR)
+            .y((-0.30 + dy) * r)
+            .text(s)
+            .color(MEDIUMPURPLE)
+            .font_size((0.05 * r) as u32)
+            ;
+    }
 
     draw.to_frame(app, &frame).expect("draw fail");
 }
