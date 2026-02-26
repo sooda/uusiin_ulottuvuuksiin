@@ -246,7 +246,7 @@ fn rotation_zw(angle: f32) -> Mat4 {
         xy.col(1).zwxy())
 }
 
-fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
+fn geometry(app: &App, model: &Model, time: f32) -> (Vec<Vertex>, Vec<Vertex>) {
     // this could be just bit patterns from 0 to 15
     let verts = [
         // bottom
@@ -340,14 +340,13 @@ fn geometry(app: &App, model: &Model) -> (Vec<Vertex>, Vec<Vertex>) {
         (7, 15, 3, 11), // back right
     ];
 
-    // just to a "4D plane" (3D volume) for now
-    //let project4d = |p: Vec4| vec3(p.x, p.y, p.z);
-    let lw = 1.1 + 0.1 * model.scroll.abs();
+    // let lw = 1.1 + 0.1 * model.scroll.abs();
+    let lw = 1.1 + 0.1 * (200.0 + (13.0 - 200.0) * (300.0 * time).min(1.0));  // ease::quint::ease_in((1000.0 * time).max(1.0), 200.0, 13.0, 1.0);
     let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
     let rotate4d = |p: Vec4| {
-        //rotation_xy(app.time) * rotation_zw(1.5*app.time)
-        rotation_xy(app.mouse.x / 50.0) * rotation_zw(app.mouse.y / 50.0)
-            * p
+        rotation_xy(app.time) * rotation_zw(1.5*app.time) *
+        //rotation_xy(app.mouse.x / 50.0) * rotation_zw(app.mouse.y / 50.0) *
+            p
     };
 
     let v = |i: usize| project4d(rotate4d(verts[i]));
@@ -654,7 +653,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
         usage: wgpu::BufferUsages::COPY_SRC,
     });
 
-    let (geom, colors) = geometry(app, model);
+    let (geom, colors) = geometry(app, model, time);
     let mut tris = Tris {
         vertices: [Vertex { position: (0.0, 0.0, 0.0) }; _],
         colors: [Vertex { position: (1.0, 0.0, 0.0) }; _],
@@ -690,7 +689,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
 }
 
 fn create_uniforms(apptime: f32, [w, h]: [u32; 2]) -> Uniforms {
-    let rotation = Mat4::from_rotation_y(0.2 * apptime);
+    let rotation = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let fov_y = std::f32::consts::FRAC_PI_2;
     let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 100.0);
     let eye = pt3(0.3, 0.3, 2.5);
