@@ -114,7 +114,7 @@ fn trace(orig: vec3f, dir: vec3f) -> vec3f {
 
 @fragment
 fn main(@location(0) po: vec3f, @builtin(position) fragcoord: vec4f) -> @location(0) vec4f {
-    let orig = (uniforms.iworld * vec4(0.3, 0.3, 2.5, 1.0)).xyz;
+    let orig = (uniforms.iworld * vec4(0.0, 0.0, 2.5, 1.0)).xyz;
     let dir = normalize(po - orig);
     return vec4f(trace(orig, dir), 1.0);
 }

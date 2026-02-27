@@ -725,7 +725,7 @@ fn create_uniforms(apptime: f32, [w, h]: [u32; 2]) -> Uniforms {
     let rotation = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let fov_y = std::f32::consts::FRAC_PI_2;
     let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 100.0);
-    let eye = pt3(0.3, 0.3, 2.5);
+    let eye = pt3(0.0, 0.0, 2.5);
     let target = Point3::ZERO;
     let up = Vec3::Y;
     let view = Mat4::look_at_rh(eye, target, up);
