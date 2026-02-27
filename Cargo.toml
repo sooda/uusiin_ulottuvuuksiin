@@ -7,4 +7,5 @@ authors = ["Konsta Hölttä <sooda@iki.fi>"]
 [dependencies]
 nannou = "0.19"
 nannou_audio = { git = "https://github.com/sooda/nannou", branch = "use-cpal-0.14" }
-glicol = "0.13"
+glicol = { version = "0.13", features = ["use-samples"] }
+audrey = "0.3"

@@ -14,6 +14,7 @@ use nannou::{
 };
 use nannou_audio as audio;
 use glicol;
+use audrey;
 
 // Design ratio as
 // x/y. On window mismatch,
@@ -130,21 +131,28 @@ fn graphics(app: &App, window_id: window::Id) -> Graphics {
     }
 }
 
-fn model(app: &App) -> Model {
-    let window_id = app.new_window()
-        .size(1920, 1080)
-        .view(view)
-        .mouse_wheel(mouse_wheel)
-        .fullscreen()
-        .build()
-        .expect("cannot build app window");
+fn load_wav(filename: &str) -> Vec<f32> {
+    let mut reader = audrey::open(filename).expect("where sound file?");
+    // NB! this channel count must match the file or it plays too fast or too slow
+    reader.frames::<[f32; 1]>()
+        .filter_map(Result::ok)
+        .map(|f| f[0])
+        .collect()
+}
 
-    let graphics = RefCell::new(graphics(app, window_id));
-
-    let audio_host = audio::Host::new();
+fn init_glicol() -> GliEngine {
     let mut gli = GliEngine::new();
-    gli.update_with_code(r#"bass: speed 2.0 >> seq 40_40 45 50 >> sawsynth 0.01 0.1"#);
+    for sname in ["dum1"] {
+        let samp = Box::new(load_wav(&format!("audio/{}.wav", sname)));
+        gli.add_sample(&format!("\\{}", sname), Box::leak(samp), 1, 44100);
+    }
+    gli.update_with_code(include_str!("../music.glicol"));
+    gli
+}
 
+fn init_audio() -> audio::Stream<AudioModel> {
+    let audio_host = audio::Host::new();
+    let gli = init_glicol();
     let mut amodel = AudioModel { gli, samples: VecDeque::new() };
 
     // TODO some day
@@ -161,8 +169,22 @@ fn model(app: &App) -> Model {
         .render(audio)
         .build()
         .expect("cannot make audio output stream");
-
     astream.play().expect("cannot play audio stream");
+    astream
+}
+
+fn model(app: &App) -> Model {
+    let window_id = app.new_window()
+        .size(1920, 1080)
+        .view(view)
+        .mouse_wheel(mouse_wheel)
+        .fullscreen()
+        .build()
+        .expect("cannot build app window");
+
+    let graphics = RefCell::new(graphics(app, window_id));
+
+    let astream = init_audio();
 
     Model {
         _window_id: window_id,
@@ -175,8 +197,19 @@ fn model(app: &App) -> Model {
 fn audio(audio: &mut AudioModel, buffer: &mut audio::Buffer) {
     for frame in buffer.frames_mut() {
         if audio.samples.is_empty() {
-            let block = audio.gli.next_block(vec![]);
-            for &sample in block.0[0].iter() {
+            let (block, err) = audio.gli.next_block(vec![]);
+            if err[0] != 0 {
+                let buf = Vec::from(&err[1..]);
+                match String::from_utf8(buf) {
+                    Ok(msg) => {
+                        println!("glicol audio error! {msg}");
+                    },
+                    Err(e) => {
+                        println!("glicol audio error but cannot parse it! {e}");
+                    }
+                }
+            }
+            for &sample in block[0].iter() {
                 audio.samples.push_back(sample);
             }
         }
