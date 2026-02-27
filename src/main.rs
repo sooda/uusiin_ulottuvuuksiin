@@ -2,7 +2,7 @@ use std::{
     iter,
     cell::RefCell,
     collections::VecDeque,
-    f32::consts::FRAC_PI_2,
+    f32::consts::{PI, FRAC_PI_2},
 };
 use nannou::{
     prelude::*,
@@ -724,18 +724,22 @@ fn view_hyper1(app: &App, model: &Model, frame: &Frame, time: f32) {
 
     let r = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let rr = Mat4::from_rotation_y(-0.5 * FRAC_PI_2);
+    let angpos0 = rotation_xy(100.0 * time);
     let superhero = (1.0, Vec3::ZERO, r);
     let data = if hypertime(time) < 1.0 {
         vec![superhero]
     } else {
         let q = 0.7;
-        vec![
-        superhero,
-        (0.2, vec3(-q * AR, -q, 0.0), rr),
-        (0.2, vec3(-q * AR,  q, 0.0), rr),
-        (0.2, vec3( q * AR, -q, 0.0), rr),
-        (0.2, vec3( q * AR,  q, 0.0), rr),
-        ]
+        let mut v = vec![superhero];
+        let slice = rotation_xy(2.0 * PI / 8.0);
+        let mut angpos = angpos0;
+        for _ in 0..8 {
+            let mut pp = (angpos * vec3(1.0, 0.0, 0.0).extend(1.0)).truncate();
+            pp.x *= AR;
+            v.push((0.2, pp, rr));
+            angpos = slice * angpos;
+        }
+        v
     };
     let mut first = true;
     for (sc, tr, ro) in data {
