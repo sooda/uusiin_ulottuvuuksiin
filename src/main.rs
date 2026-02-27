@@ -373,8 +373,7 @@ fn geometry(app: &App, model: &Model, time: f32) -> (Vec<Vertex>, Vec<Vertex>) {
         (7, 15, 3, 11), // back right
     ];
 
-    // let lw = 1.1 + 0.1 * model.scroll.abs();
-    let lw = 1.1 + 0.1 * (200.0 + (13.0 - 200.0) * (300.0 * time).min(1.0));  // ease::quint::ease_in((1000.0 * time).max(1.0), 200.0, 13.0, 1.0);
+    let (_, lw) = hyperease(time);
     let project4d = |p: Vec4| (1.0 / (lw - p.w) * p).truncate();
     let rotate4d = |p: Vec4| {
         rotation_xy(app.time) * rotation_zw(1.5*app.time) *
@@ -724,10 +723,18 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     render_pass.draw(0..geom.len() as u32, 0..1);
 }
 
+fn hyperease(time: f32) -> (f32, f32) {
+    let a = 1.1 + 1000.0;
+    let b = 1.1 + 1.3;
+    let c = ease::quint::ease_out((time * 100.0).min(1.0), a, b - a, 1.0);
+    (b, c)
+}
+
 fn create_uniforms(time: f32, [w, h]: [u32; 2]) -> Uniforms {
+    let (lw0, lw) = hyperease(time);
     let rotation = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
-    let fov_y = std::f32::consts::FRAC_PI_2;
-    let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 100.0);
+    let fov_y = 2.0 * (lw0 / lw * (0.5 * FRAC_PI_2).tan()).atan();
+    let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 10000.0);
     let eye = pt3(0.0, 0.0, 2.5);
     let target = Point3::ZERO;
     let up = Vec3::Y;
