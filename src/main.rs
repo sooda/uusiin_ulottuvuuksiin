@@ -388,11 +388,14 @@ fn geometry(app: &App, model: &Model, time: f32) -> (Vec<Vertex>, Vec<Vertex>) {
             ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
         })
     .collect::<Vec<_>>();
+    let stretch = 0.00 * time; // TODO explode faces away from origin
     let tri = qua.iter()
         .flat_map(|(q, c)| {
+            let n = 0.25 * (q.0 + q.1 + q.2 + q.3);
+            let st = stretch * n;
             let c = lin_srgba(c.red, c.green, c.blue, 0.5);
-            let a = Tri([(q.0, c), (q.1, c), (q.2, c)]);
-            let b = Tri([(q.3, c), (q.2, c), (q.1, c)]);
+            let a = Tri([(q.0 + st, c), (q.1 + st, c), (q.2 + st, c)]);
+            let b = Tri([(q.3 + st, c), (q.2 + st, c), (q.1 + st, c)]);
             iter::once(a).chain(iter::once(b))
         })
     .collect::<Vec<_>>();
@@ -721,7 +724,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     render_pass.draw(0..geom.len() as u32, 0..1);
 }
 
-fn create_uniforms(apptime: f32, [w, h]: [u32; 2]) -> Uniforms {
+fn create_uniforms(time: f32, [w, h]: [u32; 2]) -> Uniforms {
     let rotation = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let fov_y = std::f32::consts::FRAC_PI_2;
     let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 100.0);
