@@ -279,7 +279,7 @@ fn rotation_zw(angle: f32) -> Mat4 {
         xy.col(1).zwxy())
 }
 
-fn geometry(app: &App, model: &Model, time: f32) -> (Vec<Vertex>, Vec<Vertex>) {
+fn geometry(app: &App, model: &Model, time: f32, scale: f32, translate: Vec3, rot: Mat4) -> (Vec<Vertex>, Vec<Vertex>) {
     // this could be just bit patterns from 0 to 15
     let verts = [
         // bottom
@@ -381,7 +381,11 @@ fn geometry(app: &App, model: &Model, time: f32) -> (Vec<Vertex>, Vec<Vertex>) {
             p
     };
 
-    let v = |i: usize| project4d(rotate4d(verts[i]));
+    let trans3d = |p: Vec3| {
+        scale * (rot * p.extend(1.0)).truncate() + translate
+    };
+
+    let v = |i: usize| trans3d(project4d(rotate4d(verts[i])));
     let qua = quads.iter().chain(quads2.iter()).chain(quads3.iter()).enumerate()
         .map(|(i, q)| {
             ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
@@ -670,6 +674,36 @@ fn view_walkoff(app: &App, model: &Model, frame: Frame, time: f32) {
 }
 
 fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
+    view_hyper1(app, model, &frame, time);
+
+    let frame_size = frame.texture_size();
+    let uniforms = create_uniforms(time, frame_size);
+    let (draw, d, _s, r) = draw_viewported(app, model);
+    /*
+    let (w, h) = (0.5, 0.5);
+    d.rect()
+        .z(1.0)
+        .color(GREEN)
+        .wh(vec2(w, h));
+        */
+    let xf = |p: Vec3| {
+        let a = uniforms.proj * uniforms.view * p.extend(1.0);
+        (1.0 / a.w * a).xyz()
+    };
+    let sz = 0.1;
+    let xyz = xf(vec3(0.0, 0.0, 0.0));
+    d
+        .tri()
+        .points(xyz,
+                xyz + vec3(-2.5 * sz, sz, 0.0),
+                xyz + vec3(-2.5 * sz, -sz, 0.0))
+        .color(GREEN)
+        ;
+    draw.to_frame(app, &frame).expect("draw fail");
+}
+
+// FIXME raw wgpu isn't scaled like the 2d geom yet
+fn view_hyper1(app: &App, model: &Model, frame: &Frame, time: f32) {
     let mut g = model.graphics.borrow_mut();
 
     let frame_size = frame.texture_size();
@@ -688,51 +722,79 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
         usage: wgpu::BufferUsages::COPY_SRC,
     });
 
-    let (geom, colors) = geometry(app, model, time);
-    let mut tris = Tris {
-        vertices: [Vertex { position: (0.0, 0.0, 0.0) }; _],
-        colors: [Vertex { position: (1.0, 0.0, 0.0) }; _],
+    let r = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
+    let rr = Mat4::from_rotation_y(-0.5 * FRAC_PI_2);
+    let superhero = (1.0, Vec3::ZERO, r);
+    let data = if hypertime(time) < 1.0 {
+        vec![superhero]
+    } else {
+        let q = 0.7;
+        vec![
+        superhero,
+        (0.2, vec3(-q * AR, -q, 0.0), rr),
+        (0.2, vec3(-q * AR,  q, 0.0), rr),
+        (0.2, vec3( q * AR, -q, 0.0), rr),
+        (0.2, vec3( q * AR,  q, 0.0), rr),
+        ]
     };
-    tris.vertices.copy_from_slice(&geom);
-    tris.colors.copy_from_slice(&colors);
-    let new_tris_buffer = device.create_buffer_init(&BufferInitDescriptor {
-        label: None,
-        contents: tris_as_bytes(&tris),
-        usage: wgpu::BufferUsages::COPY_SRC,
-    });
+    let mut first = true;
+    for (sc, tr, ro) in data {
+        let (geom, colors) = geometry(app, model, time, sc, tr, ro);
+        let mut tris = Tris {
+            vertices: [Vertex { position: (0.0, 0.0, 0.0) }; _],
+            colors: [Vertex { position: (1.0, 0.0, 0.0) }; _],
+        };
+        tris.vertices.copy_from_slice(&geom);
+        tris.colors.copy_from_slice(&colors);
+        let new_tris_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: None,
+            contents: tris_as_bytes(&tris),
+            usage: wgpu::BufferUsages::COPY_SRC,
+        });
 
-    let vert_buffer = device.create_buffer_init(&BufferInitDescriptor {
-        label: None,
-        contents: vertices_as_bytes(&geom),
-        usage: wgpu::BufferUsages::VERTEX,
-    });
+        let vert_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: None,
+            contents: vertices_as_bytes(&geom),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-    let mut encoder = frame.command_encoder();
-    let uniforms_size = std::mem::size_of::<Uniforms>() as wgpu::BufferAddress;
-    let tris_size = std::mem::size_of::<Tris>() as wgpu::BufferAddress;
-    encoder.copy_buffer_to_buffer(&new_uniform_buffer, 0, &g.uniform_buffer, 0, uniforms_size);
-    encoder.copy_buffer_to_buffer(&new_tris_buffer, 0, &g.tris_buffer, 0, tris_size);
+        let mut encoder = frame.command_encoder();
+        let uniforms_size = std::mem::size_of::<Uniforms>() as wgpu::BufferAddress;
+        let tris_size = std::mem::size_of::<Tris>() as wgpu::BufferAddress;
+        encoder.copy_buffer_to_buffer(&new_uniform_buffer, 0, &g.uniform_buffer, 0, uniforms_size);
+        encoder.copy_buffer_to_buffer(&new_tris_buffer, 0, &g.tris_buffer, 0, tris_size);
 
-    let mut render_pass = wgpu::RenderPassBuilder::new()
-        .color_attachment(frame.texture_view(), |color| color)
-        .depth_stencil_attachment(&g.depth_texture_view, |depth| depth)
-        .begin(&mut encoder);
-    render_pass.set_bind_group(0, &g.bind_group, &[]);
-    render_pass.set_pipeline(&g.render_pipeline);
-    render_pass.set_vertex_buffer(0, vert_buffer.slice(..));
-    render_pass.draw(0..geom.len() as u32, 0..1);
+        let mut render_pass = wgpu::RenderPassBuilder::new()
+            .color_attachment(frame.texture_view(), |color| {
+                color.load_op(if first { wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT)} else { wgpu::LoadOp::Load }).store_op(true)
+            })
+            .depth_stencil_attachment(&g.depth_texture_view, |depth| {
+                depth.depth_load_op(if first { wgpu::LoadOp::Clear(1.0)} else { wgpu::LoadOp::Load }).depth_store_op(true)
+            })
+            .begin(&mut encoder);
+        render_pass.set_bind_group(0, &g.bind_group, &[]);
+        render_pass.set_pipeline(&g.render_pipeline);
+        render_pass.set_vertex_buffer(0, vert_buffer.slice(..));
+        render_pass.draw(0..geom.len() as u32, 0..1);
+        first = false;
+    }
+}
+
+fn hypertime(time: f32) -> f32 {
+    (time * 100.0).min(1.0)
+    //(time * 1000.0).min(1.0) // fast skip
 }
 
 fn hyperease(time: f32) -> (f32, f32) {
     let a = 1.1 + 1000.0;
     let b = 1.1 + 1.3;
-    let c = ease::quint::ease_out((time * 100.0).min(1.0), a, b - a, 1.0);
+    let c = ease::quint::ease_out(hypertime(time), a, b - a, 1.0);
     (b, c)
 }
 
 fn create_uniforms(time: f32, [w, h]: [u32; 2]) -> Uniforms {
     let (lw0, lw) = hyperease(time);
-    let rotation = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
+    let rotation = Mat4::IDENTITY;//Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let fov_y = 2.0 * (lw0 / lw * (0.5 * FRAC_PI_2).tan()).atan();
     let proj = Mat4::perspective_rh_gl(fov_y, w as f32 / h as f32, 0.01, 10000.0);
     let eye = pt3(0.0, 0.0, 2.5);
