@@ -420,7 +420,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
         (view_dropping, 1.5),
         (view_undrop, 2.5),
         (view_walking, 20.0),
-        (view_walkoff, 2.0),
+        (view_walkoff, 5.0),
         (view_hyper, 1000.0),
     ];
     let mut runtime = 0.0;
@@ -630,23 +630,79 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
 
     let follow_rate = ease::sine::ease_out(time, 0.0, 1.0, 3.5);
 
-    let d = d.y(-4.0 * time2);
-    mountain_landscape(&d, 1.0, 3.0 * tim * sz);
-    let d = d.y(8.0 * time2);
+    let zip = ease::expo::ease_in((2.0 * time2).min(1.0), 0.0, 1.0, 1.0);
+    let d2 = d.y(-4.0 * zip);
+    mountain_landscape(&d2, 1.0, 3.0 * tim * sz);
+    // let d = d.y(8.0 * zip);
 
-    d
-        .x(0.9 * follow_rate * -tim * sz)
-        .x(itick * sz + xpos)
-        .y(ypos)
-        .z_radians(-ftick)
-        .translate(vec3(-0.5 * sz, 0.5 * sz, 1.0))
-        .rect()
-        .no_fill()
-        .stroke_color(WHITE)
-        .stroke_weight(0.01)
-        .wh(vec2(sz, sz));
+    if time2 == 0.0 {
+        d
+            .x(0.9 * follow_rate * -tim * sz)
+            .x(itick * sz + xpos)
+            .y(ypos)
+            .z_radians(-ftick)
+            .translate(vec3(-0.5 * sz, 0.5 * sz, 1.0))
+            .rect()
+            .no_fill()
+            .stroke_color(WHITE)
+            .stroke_weight(0.01)
+            .wh(vec2(sz, sz));
+    } else {
+        let verts = [
+            // bottom
+            vec4(-1.0, -1.0, -1.0, -1.0),
+            vec4( 1.0, -1.0, -1.0, -1.0),
+            vec4(-1.0,  1.0, -1.0, -1.0),
+            vec4( 1.0,  1.0, -1.0, -1.0),
+            // top
+            vec4(-1.0, -1.0,  1.0, -1.0),
+            vec4( 1.0, -1.0,  1.0, -1.0),
+            vec4(-1.0,  1.0,  1.0, -1.0),
+            vec4( 1.0,  1.0,  1.0, -1.0),
+        ];
+        let quads = [
+            (0, 1, 2, 3), // bot
+            (6, 7, 4, 5), // top
+            (4, 5, 0, 1), // front
+            (7, 6, 3, 2), // back
+            (6, 4, 2, 0), // left
+            (5, 7, 1, 3), // right
+        ];
+        let rotime = ease::sine::ease_in(time2, 0.0, 1.5, 1.0);
+        let recenter = ease::cubic::ease_in_out(time2, 1.0, -1.0, 1.0);
+        let v = |i: usize| rotation_xy(PI * rotime) *
+            rotation_yz(2.0 * PI * rotime) *
+            rotation_xz(3.0 * PI * rotime) *
+            verts[i];
+        let qua = quads.iter()
+            .map(|q| {
+                (v(q.0), v(q.1), v(q.2), v(q.3))
+            })
+        ;
+        let d = d
+            .x(recenter * 0.9 * follow_rate * -tim * sz)
+            .x(recenter * (itick * sz + xpos))
+            .y(recenter * ypos)
+            .z_radians(-ftick)
+            .translate(recenter * vec3(-0.5 * sz, 0.5 * sz, 0.0))
+            .translate(vec3(0.0, 0.0, 1.0))
+            ;
+        let sz = ease::bounce::ease_in(time2, sz, 2.0 * sz, 1.0);
+        for q in qua {
+            for (s, e) in [(q.0, q.1), (q.2, q.3), (q.0, q.2), (q.1, q.3)] {
+                let s = 0.5 * sz * s;
+                let e = 0.5 * sz * e;
+                d
+                    .line()
+                    .start(s.xy())
+                    .end(e.xy())
+                    .weight(0.01)
+                    .color(WHITE);
+            }
+        }
+    }
 
-    let msg = "get ready for 2026-06-05 to 2026-06-07 ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ profit";
+    let msg = "get ready for 2026-06-05 to 2026-06-07 ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
     let t = -3.14*1.5 * time;
     for (i, ch) in msg.chars().enumerate() {
         let mut buf = [0u8; 4];
@@ -669,8 +725,7 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
 fn view_walkoff(app: &App, model: &Model, frame: Frame, time: f32) {
     frame.clear(BLACK);
 
-    let zip = ease::expo::ease_in(time, 0.0, 1.0, 1.0);
-    walking(app, model, frame, 1.0, zip);
+    walking(app, model, frame, 1.0, time);
 }
 
 fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
