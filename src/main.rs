@@ -391,7 +391,8 @@ fn geometry(app: &App, model: &Model, time: f32, scale: f32, translate: Vec3, ro
             ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
         })
     .collect::<Vec<_>>();
-    let stretch = 0.00 * time; // TODO explode faces away from origin
+    let stretcht = (time * 1000.0 - 20.0).max(0.0);
+    let stretch = 0.06 * stretcht;
     let tri = qua.iter()
         .flat_map(|(q, c)| {
             let n = 0.25 * (q.0 + q.1 + q.2 + q.3);
@@ -731,30 +732,25 @@ fn view_walkoff(app: &App, model: &Model, frame: Frame, time: f32) {
 fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     view_hyper1(app, model, &frame, time);
 
-    let frame_size = frame.texture_size();
-    let uniforms = create_uniforms(time, frame_size);
-    let (draw, d, _s, r) = draw_viewported(app, model);
-    /*
-    let (w, h) = (0.5, 0.5);
-    d.rect()
-        .z(1.0)
-        .color(GREEN)
-        .wh(vec2(w, h));
-        */
-    let xf = |p: Vec3| {
-        let a = uniforms.proj * uniforms.view * p.extend(1.0);
-        (1.0 / a.w * a).xyz()
-    };
-    let sz = 0.1;
-    let xyz = xf(vec3(0.0, 0.0, 0.0));
-    d
-        .tri()
-        .points(xyz,
-                xyz + vec3(-2.5 * sz, sz, 0.0),
-                xyz + vec3(-2.5 * sz, -sz, 0.0))
-        .color(GREEN)
-        ;
-    draw.to_frame(app, &frame).expect("draw fail");
+    if false {
+        let frame_size = frame.texture_size();
+        let uniforms = create_uniforms(time, frame_size);
+        let (draw, d, _s, r) = draw_viewported(app, model);
+        let xf = |p: Vec3| {
+            let a = uniforms.proj * uniforms.view * p.extend(1.0);
+            (1.0 / a.w * a).xyz()
+        };
+        let sz = 0.1;
+        let xyz = xf(vec3(0.0, 0.0, 0.0));
+        d
+            .tri()
+            .points(xyz,
+                    xyz + vec3(-2.5 * sz, sz, 0.0),
+                    xyz + vec3(-2.5 * sz, -sz, 0.0))
+            .color(GREEN)
+            ;
+        draw.to_frame(app, &frame).expect("draw fail");
+    }
 }
 
 // FIXME raw wgpu isn't scaled like the 2d geom yet
@@ -779,17 +775,16 @@ fn view_hyper1(app: &App, model: &Model, frame: &Frame, time: f32) {
 
     let r = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let rr = Mat4::from_rotation_y(-0.5 * FRAC_PI_2);
-    let angpos0 = rotation_xy(100.0 * time);
+    let angpos0 = rotation_xy(100.0 * time * 2.0 * PI);
     let superhero = (1.0, Vec3::ZERO, r);
     let data = if hypertime(time) < 1.0 {
         vec![superhero]
     } else {
-        let q = 0.7;
         let mut v = vec![superhero];
-        let slice = rotation_xy(2.0 * PI / 8.0);
+        let slice = rotation_xy(2.0 * PI / 5.0);
         let mut angpos = angpos0;
-        for _ in 0..8 {
-            let mut pp = (angpos * vec3(1.0, 0.0, 0.0).extend(1.0)).truncate();
+        for _ in 0..5 {
+            let mut pp = (angpos * vec3(1.3, 0.0, 0.0).extend(1.0)).truncate();
             pp.x *= AR;
             v.push((0.2, pp, rr));
             angpos = slice * angpos;
@@ -846,7 +841,7 @@ fn hypertime(time: f32) -> f32 {
 
 fn hyperease(time: f32) -> (f32, f32) {
     let a = 1.1 + 1000.0;
-    let b = 1.1 + 1.3;
+    let b = 1.1 + 1.1;
     let c = ease::quint::ease_out(hypertime(time), a, b - a, 1.0);
     (b, c)
 }
