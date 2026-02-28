@@ -255,7 +255,10 @@ fn mouse_wheel(_app: &App, model: &mut Model, dt: MouseScrollDelta, _phase: Touc
     }
 }
 
-fn update(_app: &App, _model: &mut Model, _update: Update) {
+fn update(app: &App, _model: &mut Model, _update: Update) {
+    if app.time > 71.0 {
+        app.quit();
+    }
 }
 
 // first some aliases for consistency
@@ -461,7 +464,10 @@ fn view(app: &App, model: &Model, frame: Frame) {
         }
         runtime += stime;
     }
-    app.quit();
+    if false {
+        // does self.windows.borrow_mut() that panics
+        app.quit();
+    }
 }
 
 // Normally, (w,h) square fills the screen. make it ([-AR..AR], [-1..1]) for AR'd screen.
