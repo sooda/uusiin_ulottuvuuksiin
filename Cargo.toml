@@ -3,6 +3,7 @@ name = "uusiin_ulottuvuuksiin"
 version = "0.1.0"
 edition = "2024"
 authors = ["Konsta Hölttä <sooda@iki.fi>"]
+license = "MIT"
 
 [dependencies]
 nannou = "0.19"
