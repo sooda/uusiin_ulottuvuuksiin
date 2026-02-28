@@ -143,6 +143,15 @@ fn load_wav(bytes: &[u8]) -> Vec<f32> {
         .collect()
 }
 
+/*
+ * tone ordering:
+ *
+ * dumm ndom
+ * dum dunn
+ * dn
+ * gynn duvum tumm
+ * dum1
+*/
 fn init_glicol() -> GliEngine {
     let mut gli = GliEngine::new();
     let stuff = [
@@ -295,7 +304,7 @@ fn rotation_zw(angle: f32) -> Mat4 {
         xy.col(1).zwxy())
 }
 
-fn geometry(app: &App, model: &Model, time: f32, scale: f32, translate: Vec3, rot: Mat4) -> (Vec<Vertex>, Vec<Vertex>) {
+fn geometry(app: &App, _model: &Model, time: f32, scale: f32, translate: Vec3, rot: Mat4) -> (Vec<Vertex>, Vec<Vertex>) {
     // this could be just bit patterns from 0 to 15
     let verts = [
         // bottom
@@ -436,12 +445,12 @@ const HYPER: f32 = 20.0 + 20.0;
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
     let scenes: [(fn(&App, &Model, Frame, f32), f32); _] = [
-        (view_loading, 2.0),
-        (view_dropping, 1.5),
-        (view_undrop, 2.5),
-        (view_walking, 20.0),
-        (view_walkoff, 5.0),
-        (view_hyper, HYPER),
+        (view_loading, 2.0), // 0
+        (view_dropping, 1.5), // 2
+        (view_undrop, 2.5), // 3.5
+        (view_walking, 20.0), // 6
+        (view_walkoff, 5.0), // 26
+        (view_hyper, HYPER), // 31 | stretch 51, text 56, end 71
     ];
     let mut runtime = 0.0;
     for (sfunc, stime) in scenes {
@@ -723,8 +732,8 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
         }
     }
 
-    let msg1 = "get ready for 2026-06-05 to 2026-06-07 ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
-    let msg2 = "valmistauduhan 2026-06-05 – 2026-06-07 ~ eväsleipää ja koodaa menemään ~ demo valmiiks ~ voita kompo ~ ??? ~ rupea järjestäjäksi";
+    let msg1 = "get ready for 2026-06-05 to 2026-06-07 ~ Graffathon ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
+    let msg2 = "valmistauduhan 2026-06-05 – 2026-06-07 ~ Graffathon ~ eväsleipää ja koodaa menemään ~ demo valmiiks ~ voita kompo ~ ??? ~ rupea järjestäjäksi";
     let t = -PI * 1.2 * time;
     for (i, (ch1, ch2)) in msg1.chars().zip(msg2.chars()).enumerate() {
         for (j, ch) in [ch1, ch2].iter().enumerate() {
@@ -762,7 +771,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
         let t = HYPER * time - 25.0;
         draw
             .x(0.0)
-            .y((-1.0 + 0.15 * t) * r)
+            .y((-1.0 + 0.14 * t) * r)
             .text("Graffathon demoparty-hackathon\n5–7 June 2026 Espoo\nBe there or get squared\n\na small invitation by Retkikunta\nvoiceover Kettu\nthe rest sooda")
             .color(POWDERBLUE)
             .font_size((0.06 * r) as u32)
@@ -775,7 +784,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     if false {
         let frame_size = frame.texture_size();
         let uniforms = create_uniforms(time, frame_size);
-        let (draw, d, _s, r) = draw_viewported(app, model);
+        let (draw, d, _s, _r) = draw_viewported(app, model);
         let xf = |p: Vec3| {
             let a = uniforms.proj * uniforms.view * p.extend(1.0);
             (1.0 / a.w * a).xyz()
