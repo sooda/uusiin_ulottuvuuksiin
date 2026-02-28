@@ -748,6 +748,7 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
     let msg1 = "get ready for 2026-06-05 to 2026-06-07 ~ Graffathon ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
     let msg2 = "valmistauduhan 2026-06-05 – 2026-06-07 ~ Graffathon ~ eväsleipää ja koodaa menemään ~ demo valmiiks ~ voita kompo ~ ??? ~ rupea järjestäjäksi";
     let t = -PI * 1.2 * time;
+    let advance = 1.0 / msg1.chars().count() as f32;
     for (i, (ch1, ch2)) in msg1.chars().zip(msg2.chars()).enumerate() {
         for (j, ch) in [ch1, ch2].iter().enumerate() {
             let j = j as f32;
@@ -756,12 +757,13 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
             let x = r * (0.4 * AR + 0.03 * i as f32 + 1.0 * t);
             let dy = (0.01 * x).sin() * 0.1;
             let vibr = if j == 0.0 { 1.0 } else { 1.0 + 0.1 * (1.0 + (2.0 * PI * 20.0 * time).sin()) };
+            let c = i as f32 * advance * 3.0;
             draw
                 .z(1.0)
                 .x(x - time2 * r * AR + 0.3 * t * r)
                 .y((-0.35 + vibr * dy + 0.08 * j) * r)
                 .text(s)
-                .color(HONEYDEW)
+                .color(hsv(c, 0.8, 0.9))
                 .font_size((0.05 * r) as u32)
                 ;
         }
