@@ -744,10 +744,9 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
         }
     }
 
-    // FIXME slide to the left to continue scrolling
     let msg1 = "get ready for 2026-06-05 to 2026-06-07 ~ Graffathon ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
     let msg2 = "valmistauduhan 2026-06-05 – 2026-06-07 ~ Graffathon ~ eväsleipää ja koodaa menemään ~ demo valmiiks ~ voita kompo ~ ??? ~ rupea järjestäjäksi";
-    let t = -PI * 1.2 * time;
+    let t = -PI * 1.2 * (time + 5.0 / 20.0 * time2);
     let advance = 1.0 / msg1.chars().count() as f32;
     for (i, (ch1, ch2)) in msg1.chars().zip(msg2.chars()).enumerate() {
         for (j, ch) in [ch1, ch2].iter().enumerate() {
