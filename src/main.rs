@@ -625,15 +625,18 @@ fn mountain_landscape(d: &Draw, time: f32, xoff: f32) {
 
     // TODO bright edges might make this better
     // TODO bright blue horizon thing
-    let mut rng = SmallRng::seed_from_u64(31337);
-    let mut rnd = || rng.next_u32() as f32 / std::u32::MAX as f32;
-    let mut rndb = |prob: f32| rnd() < prob;
+    let mut rnga = SmallRng::seed_from_u64(31337);
+    let mut rngb = SmallRng::seed_from_u64(31337);
+    let rnd0 = |r: &mut SmallRng| r.next_u32() as f32 / std::u32::MAX as f32;
+    let mut rnd = || rnd0(&mut rnga);
+    let mut rndb = |prob: f32| rnd0(&mut rngb) < prob;
     for &sz in [1i32, 3, 5, 11, 17, 23].iter() {
-        let geom = (-100..100).step_by(sz as usize).filter(|&_| rndb(0.8))
+        let geom = (-100..100).step_by(sz as usize / 10 + 1).filter(|&_| rndb(0.6))
             .map(|i| {
                 let fx = |x: i32| (sz + x * sz) as f32;
-                let x0 = fx(i);
-                let x1 = fx(i + 2);
+                let r = 1.0 * rnd();
+                let x0 = fx(i) + r;
+                let x1 = fx(i + 2) + r;
                 let y0 = ground_y;
                 let y1 = ground_y + time * 0.9 * sz as f32;
                 let c = rgba(1.0, 0.0, 1.0, 0.2);
