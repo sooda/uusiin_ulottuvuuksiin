@@ -450,7 +450,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
         (view_undrop, 2.5), // 3.5
         (view_walking, 20.0), // 6
         (view_walkoff, 5.0), // 26
-        (view_hyper, HYPER), // 31 | stretch 51, text 56, end 71
+        (view_hyper, HYPER), // 31 | opened 41, stretch 51, text 56, end 71
     ];
     let mut runtime = 0.0;
     for (sfunc, stime) in scenes {
@@ -732,6 +732,7 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
         }
     }
 
+    // FIXME slide to the left to continue scrolling
     let msg1 = "get ready for 2026-06-05 to 2026-06-07 ~ Graffathon ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
     let msg2 = "valmistauduhan 2026-06-05 – 2026-06-07 ~ Graffathon ~ eväsleipää ja koodaa menemään ~ demo valmiiks ~ voita kompo ~ ??? ~ rupea järjestäjäksi";
     let t = -PI * 1.2 * time;
