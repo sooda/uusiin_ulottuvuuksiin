@@ -440,7 +440,7 @@ fn geometry(app: &App, _model: &Model, time: f32, scale: f32, translate: Vec3, r
 }
 
 // easier partycoding adjustment last minute
-const HYPER: f32 = 20.0 + 20.0;
+const HYPER: f32 = 20.0 + 22.0;
 
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
@@ -772,7 +772,7 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
         let t = HYPER * time - 25.0;
         draw
             .x(0.0)
-            .y((-1.0 + 0.14 * t) * r)
+            .y((-1.0 + 0.12 * t) * r)
             .text("Graffathon demoparty-hackathon\n5–7 June 2026 Espoo\nBe there or get squared\n\na small invitation by Retkikunta\nvoiceover Kettu\nthe rest sooda")
             .color(POWDERBLUE)
             .font_size((0.06 * r) as u32)

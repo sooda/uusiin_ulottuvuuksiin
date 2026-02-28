@@ -113,7 +113,7 @@ fn trace(orig: vec3f, dir: vec3f) -> vec3f {
 
         var thiscolor = tric(nextidx);
 
-        if a.y < 0.01 || a.z < 0.01 {
+        if a.y < 0.02 || a.z < 0.02 {
             thiscolor += vec3f(1.0);
         }
 
