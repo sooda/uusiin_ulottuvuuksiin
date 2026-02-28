@@ -391,8 +391,8 @@ fn geometry(app: &App, model: &Model, time: f32, scale: f32, translate: Vec3, ro
             ((v(q.0), v(q.1), v(q.2), v(q.3)), colors[i % colors.len()])
         })
     .collect::<Vec<_>>();
-    let stretcht = (time * 1000.0 - 20.0).max(0.0);
-    let stretch = 0.06 * stretcht;
+    let stretcht = (time * HYPER - 20.0).max(0.0);
+    let stretch = 0.06 * stretcht * stretcht;
     let tri = qua.iter()
         .flat_map(|(q, c)| {
             let n = 0.25 * (q.0 + q.1 + q.2 + q.3);
@@ -414,6 +414,9 @@ fn geometry(app: &App, model: &Model, time: f32, scale: f32, translate: Vec3, ro
     (verts, colors)
 }
 
+// easier partycoding adjustment last minute
+const HYPER: f32 = 20.0 + 20.0;
+
 fn view(app: &App, model: &Model, frame: Frame) {
     frame.clear(PURPLE);
     let scenes: [(fn(&App, &Model, Frame, f32), f32); _] = [
@@ -422,17 +425,18 @@ fn view(app: &App, model: &Model, frame: Frame) {
         (view_undrop, 2.5),
         (view_walking, 20.0),
         (view_walkoff, 5.0),
-        (view_hyper, 1000.0),
+        (view_hyper, HYPER),
     ];
     let mut runtime = 0.0;
     for (sfunc, stime) in scenes {
         if app.time < runtime + stime {
             let tick = (app.time - runtime) / stime;
             sfunc(app, model, frame, tick);
-            break;
+            return;
         }
         runtime += stime;
     }
+    app.quit();
 }
 
 // Normally, (w,h) square fills the screen. make it ([-AR..AR], [-1..1]) for AR'd screen.
@@ -705,7 +709,7 @@ fn walking(app: &App, model: &Model, frame: Frame, time: f32, time2: f32) {
 
     let msg1 = "get ready for 2026-06-05 to 2026-06-07 ~ grab snacks and hack around ~ finish a demo ~ win the compo ~ ??? ~ become an organizer";
     let msg2 = "valmistauduhan 2026-06-05 – 2026-06-07 ~ eväsleipää ja koodaa menemään ~ demo valmiiks ~ voita kompo ~ ??? ~ rupea järjestäjäksi";
-    let t = -PI * 1.5 * time;
+    let t = -PI * 1.2 * time;
     for (i, (ch1, ch2)) in msg1.chars().zip(msg2.chars()).enumerate() {
         for (j, ch) in [ch1, ch2].iter().enumerate() {
             let j = j as f32;
@@ -738,12 +742,12 @@ fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     view_hyper1(app, model, &frame, time);
 
     let (draw, _d, _s, r) = draw_viewported(app, model);
-    if 1000.0 * time > 30.0 {
-        let t = 1000.0 * time - 30.0;
+    if HYPER * time > 25.0 {
+        let t = HYPER * time - 25.0;
         draw
             .x(0.0)
             .y((-1.0 + 0.15 * t) * r)
-            .text("Graffathon demoparty-hackathon\n5–7 June 2026\nBe there or get squared\n\na small invitation by Retkikunta\nvoiceover Kettu\nthe rest sooda")
+            .text("Graffathon demoparty-hackathon\n5–7 June 2026 Espoo\nBe there or get squared\n\na small invitation by Retkikunta\nvoiceover Kettu\nthe rest sooda")
             .color(POWDERBLUE)
             .font_size((0.06 * r) as u32)
             .w(AR * r)
@@ -795,7 +799,7 @@ fn view_hyper1(app: &App, model: &Model, frame: &Frame, time: f32) {
 
     let r = Mat4::from_rotation_y(0.5 * FRAC_PI_2);
     let rr = Mat4::from_rotation_y(-0.5 * FRAC_PI_2);
-    let angpos0 = rotation_xy(100.0 * time * 2.0 * PI);
+    let angpos0 = rotation_xy(0.1 * HYPER * time * 2.0 * PI);
     let superhero = (1.0, Vec3::ZERO, r);
     let data = if hypertime(time) < 1.0 {
         vec![superhero]
@@ -855,8 +859,7 @@ fn view_hyper1(app: &App, model: &Model, frame: &Frame, time: f32) {
 }
 
 fn hypertime(time: f32) -> f32 {
-    (time * 100.0).min(1.0)
-    //(time * 1000.0).min(1.0) // fast skip
+    (0.1 * time * HYPER).min(1.0)
 }
 
 fn hyperease(time: f32) -> (f32, f32) {
