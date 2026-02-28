@@ -146,7 +146,17 @@ fn load_wav(bytes: &[u8]) -> Vec<f32> {
 fn init_glicol() -> GliEngine {
     let mut gli = GliEngine::new();
     let stuff = [
-        (r"\dum1", include_bytes!("../audio/dum1.wav")),
+        (r"\dum1", &include_bytes!("../audio/dum1.wav")[..]),
+        (r"\dn", &include_bytes!("../audio/dn.wav")[..]),
+        (r"\dum", &include_bytes!("../audio/dum.wav")[..]),
+        (r"\dum1", &include_bytes!("../audio/dum1.wav")[..]),
+        (r"\dumdidum", &include_bytes!("../audio/dumdidum.wav")[..]),
+        (r"\dumm", &include_bytes!("../audio/dumm.wav")[..]),
+        (r"\dunn", &include_bytes!("../audio/dunn.wav")[..]),
+        (r"\duvum", &include_bytes!("../audio/duvum.wav")[..]),
+        (r"\gynn", &include_bytes!("../audio/gynn.wav")[..]),
+        (r"\ndom", &include_bytes!("../audio/ndom.wav")[..]),
+        (r"\tumm", &include_bytes!("../audio/tumm.wav")[..]),
     ];
     for (sname, sbytes) in stuff {
         let samp = Box::new(load_wav(sbytes));
