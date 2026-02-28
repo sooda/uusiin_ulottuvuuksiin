@@ -737,6 +737,21 @@ fn view_walkoff(app: &App, model: &Model, frame: Frame, time: f32) {
 fn view_hyper(app: &App, model: &Model, frame: Frame, time: f32) {
     view_hyper1(app, model, &frame, time);
 
+    let (draw, _d, _s, r) = draw_viewported(app, model);
+    if 1000.0 * time > 30.0 {
+        let t = 1000.0 * time - 30.0;
+        draw
+            .x(0.0)
+            .y((-1.0 + 0.15 * t) * r)
+            .text("Graffathon demoparty-hackathon\n5–7 June 2026\nBe there or get squared\n\na small invitation by Retkikunta\nvoiceover Kettu\nthe rest sooda")
+            .color(POWDERBLUE)
+            .font_size((0.06 * r) as u32)
+            .w(AR * r)
+            .center_justify();
+
+        draw.to_frame(app, &frame).expect("draw fail");
+    }
+
     if false {
         let frame_size = frame.texture_size();
         let uniforms = create_uniforms(time, frame_size);
