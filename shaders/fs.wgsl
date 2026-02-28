@@ -106,7 +106,17 @@ fn trace(orig: vec3f, dir: vec3f) -> vec3f {
         }
         maxdist = nextdist;
 
-        let thiscolor = tric(nextidx);
+        let v0 = tri(3 * nextidx + 0);
+        let v1 = tri(3 * nextidx + 1);
+        let v2 = tri(3 * nextidx + 2);
+        let a = intersect_triangle1(orig, dir, v0, v1, v2);
+
+        var thiscolor = tric(nextidx);
+
+        if a.y < 0.01 || a.z < 0.01 {
+            thiscolor += vec3f(1.0);
+        }
+
         color = thiscolor * color + 0.15f * thiscolor;
     }
     return color;
