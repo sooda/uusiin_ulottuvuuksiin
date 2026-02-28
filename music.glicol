@@ -41,4 +41,4 @@
 
 ~music: mix ~drum ~duus ~dumdidum >> plate 0.1
 
-o: mix ~load ~boing ~music ~noiz ~spaceduu ~endingduu >> mul 0.9
+o: mix ~load ~boing ~music ~noiz ~spaceduu ~endingduu >> mul 2.0
