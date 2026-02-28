@@ -181,11 +181,14 @@ fn init_audio() -> audio::Stream<AudioModel> {
     let mut amodel = AudioModel { gli, samples: VecDeque::new() };
 
     // TODO some day
-    let _sr = audio_host.default_output_device()
+    let sr = audio_host.default_output_device()
         .expect("No audio output devices?")
         .default_output_config()
         .expect("No audio output stream config?")
         .sample_rate().0 as usize;
+    if sr != 44100 {
+        println!("found default system sample rate {sr}, adjusting");
+    }
     amodel.gli.set_sr(44100); // that's the default as of writing but just to be safe
 
     let astream = audio_host
