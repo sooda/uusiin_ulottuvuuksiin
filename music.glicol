@@ -6,13 +6,13 @@
 ~noiz: noiz 42 >> delayms 51000 >> lpf 200.0 40.0 >> mul 0.2
 
 ~load: imp 0.0 >> sawsynth 0.01 2.0 >> lpf 400.0 20.0
-~drum: seq 70 55 42 42 >> bd 0.1 >> delayms 2000 >> mul 0.3
-~d5: speed 0.333 >> seq 60 __ __ __  60 __ __ __  60_ 60 __ __ >> delayms 6000 >> sp \dum1
-~d4: speed 0.333 >> seq __ 60 __ __  __ 60 __ __  _60 __ __ __ >> delayms 6000 >> sp \duvum
-~d3: speed 0.333 >> seq __ __ 60 __  __ __ 60 __  __  __ 60 __ >> delayms 6000 >> sp \dn
-~d2: speed 0.333 >> seq __ __ __ 60  __ __ __ 60  __  __ __ 60 >> delayms 6000 >> sp \dum
-~d1: speed 0.333 >> seq 60 __ __ __  60 __ __ __  __  __ __ __ >> delayms 6000 >> sp \dumm
+~drum: seq 70 55 42 42 >> bd 0.1 >> mul 0.3 >> delayms 2000
+~d5: speed 0.333 >> seq 60 __ __ __  60 __ __ __  60_ 60 __ __ >> sp \dum1
+~d4: speed 0.333 >> seq __ 60 __ __  __ 60 __ __  _60 __ __ __ >> sp \duvum
+~d3: speed 0.333 >> seq __ __ 60 __  __ __ 60 __  __  __ 60 __ >> sp \dn
+~d2: speed 0.333 >> seq __ __ __ 60  __ __ __ 60  __  __ __ 60 >> sp \dum
+~d1: speed 0.333 >> seq 60 __ __ __  60 __ __ __  __  __ __ __ >> sp \dumm
 ~ss: speed 2.0 >> seq 80_80 80 80_80 80 >> hh 0.09 >> mul 0.5
-// delayms after this wouldn't delay
-~duus: mix ~d1 ~d2 ~d3 ~d4 ~d5 ~ss
-o: mix ~load ~drum ~duus ~dumdidum ~noiz >> mul 0.1
+~duus: mix ~d1 ~d2 ~d3 ~d4 ~d5 ~ss >> delayms 6000
+~music: mix ~drum ~duus ~dumdidum ~noiz >> plate 0.1
+o: mix ~load ~music >> mul 0.9
