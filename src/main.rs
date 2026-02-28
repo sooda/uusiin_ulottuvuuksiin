@@ -3,6 +3,7 @@ use std::{
     cell::RefCell,
     collections::VecDeque,
     f32::consts::{PI, FRAC_PI_2},
+    io::{BufReader, Cursor},
 };
 use nannou::{
     prelude::*,
@@ -131,10 +132,12 @@ fn graphics(app: &App, window_id: window::Id) -> Graphics {
     }
 }
 
-fn load_wav(filename: &str) -> Vec<f32> {
-    let mut reader = audrey::open(filename).expect("where sound file?");
+fn load_wav(bytes: &[u8]) -> Vec<f32> {
+    let cursor = Cursor::new(bytes);
+    let breader = BufReader::new(cursor);
+    let mut areader = audrey::Reader::new(breader).expect("wav loading failed");
     // NB! this channel count must match the file or it plays too fast or too slow
-    reader.frames::<[f32; 1]>()
+    areader.frames::<[f32; 1]>()
         .filter_map(Result::ok)
         .map(|f| f[0])
         .collect()
@@ -142,9 +145,12 @@ fn load_wav(filename: &str) -> Vec<f32> {
 
 fn init_glicol() -> GliEngine {
     let mut gli = GliEngine::new();
-    for sname in ["dum1"] {
-        let samp = Box::new(load_wav(&format!("audio/{}.wav", sname)));
-        gli.add_sample(&format!("\\{}", sname), Box::leak(samp), 1, 44100);
+    let stuff = [
+        (r"\dum1", include_bytes!("../audio/dum1.wav")),
+    ];
+    for (sname, sbytes) in stuff {
+        let samp = Box::new(load_wav(sbytes));
+        gli.add_sample(sname, Box::leak(samp), 1, 44100);
     }
     gli.update_with_code(include_str!("../music.glicol"));
     gli
