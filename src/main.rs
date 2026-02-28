@@ -423,7 +423,7 @@ fn geometry(app: &App, _model: &Model, time: f32, scale: f32, translate: Vec3, r
         })
     .collect::<Vec<_>>();
     let stretcht = (time * HYPER - 20.0).max(0.0);
-    let stretch = 0.06 * stretcht * stretcht;
+    let stretch = 0.02 * stretcht * stretcht;
     let tri = qua.iter()
         .flat_map(|(q, c)| {
             let n = 0.25 * (q.0 + q.1 + q.2 + q.3);

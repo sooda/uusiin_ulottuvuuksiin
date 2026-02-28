@@ -7,17 +7,17 @@
 
 ~boinglfo: saw 0.5 >> mul 0.5 >> add 0.5 >> mul 600.0 >> add 100.0
 ~boingenv: imp 0.001 >> envperc 0.001 2.0
-~boing: squ ~boinglfo >> mul ~boingenv >> delayms 3500
+~boing: squ ~boinglfo >> mul ~boingenv >> delayms 3500 >> mul 0.1
 
-~drum: seq 70 55 45 45 >> bd 0.1 >> mul 0.3 >> delayms 2000
+~drum: seq 70 55 48 48 >> bd 0.1 >> mul 0.3 >> delayms 2000
 ~d5: speed 0.333 >> seq 60 __ __ __  60 __ __ __  60_ 60 __ __ >> sp \dum1
 ~d4: speed 0.333 >> seq __ 60 __ __  __ 60 __ __  _60 __ __ __ >> sp \duvum
 ~d3: speed 0.333 >> seq __ __ 60 __  __ __ 60 __  ___ __ 60 __ >> sp \dn
 ~d2: speed 0.333 >> seq __ __ __ 60  __ __ __ 60  ___ __ __ 60 >> sp \dum
 ~d1: speed 0.333 >> seq 60 __ __ __  60 __ __ __  ___ __ __ __ >> sp \dumm
-~ss: speed 2.0 >> seq 80_80 80 80_80 80 >> hh 0.09 >> mul 0.5
+~ss: speed 2.0 >> seq 80_80 80 80_80 80 >> hh 0.09 >> mul 0.08
 
-~duuenv: imp 0.001 >> envperc 0.01 26.0
+~duuenv: imp 0.001 >> envperc 0.01 27
 ~duus: mix ~d1 ~d2 ~d3 ~d4 ~d5 ~ss >> mul ~duuenv >> delayms 6000
 
 ~dumdidum: imp 0.0 >> delayms 31000 >> sp \dumdidum
@@ -27,11 +27,11 @@
 ~d2s: speed 0.5 >> seq __ _ 60 __ _ 60 __ _ __ 60 _ __ __ __ >> sp \dum
 ~d1s: speed 0.5 >> seq 60 _ __ 60 _ __ __ _ __ __ _ 60 __ __ >> sp \ndom >> plate 0.15
 
-~spaceenv: imp 0.001 >> envperc 0.01 13
+~spaceenv: imp 0.001 >> envperc 0.01 15
 ~spaceduu: mix ~d4s ~d3s ~d2s ~d1s >> plate 0.11 >> mul ~spaceenv >> delayms 39000
 
 ~judg1env: imp 0.001 >> envperc 0.01 4
-~judg2env: imp 0.001 >> envperc 4 19
+~judg2env: imp 0.001 >> envperc 4 17
 ~judg1: speed 1.0 >> seq 60 60 _ _ 60 _ 60 60 _ _ _ _ _ _ >> sp \tumm >> mul ~judg1env
 ~judg2: speed 1.0 >> seq 60 60 _ _ 60 _ 60 60 _ _ _ _ _ _ >> sp \dumm >> mul ~judg2env
 
