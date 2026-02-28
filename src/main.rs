@@ -79,6 +79,7 @@ fn main() {
 
 fn graphics(app: &App, window_id: window::Id) -> Graphics {
     let window = app.window(window_id).expect("where did our window go?");
+    window.set_cursor_visible(false);
     let device = window.device();
     let format = Frame::TEXTURE_FORMAT;
     let depth_format = wgpu::TextureFormat::Depth32Float;
