@@ -195,16 +195,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "avaruuskuutio"
-version = "0.1.0"
-dependencies = [
- "audrey",
- "glicol",
- "nannou",
- "nannou_audio",
-]
-
-[[package]]
 name = "backtrace"
 version = "0.3.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3090,6 +3080,16 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "uusiin_ulottuvuuksiin"
+version = "0.1.0"
+dependencies = [
+ "audrey",
+ "glicol",
+ "nannou",
+ "nannou_audio",
+]
 
 [[package]]
 name = "vec_map"
