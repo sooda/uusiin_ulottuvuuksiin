@@ -488,9 +488,8 @@ dependencies = [
 
 [[package]]
 name = "cpal"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f342c1b63e185e9953584ff2199726bf53850d96610a310e3aca09e9405a2d0b"
+version = "0.14.3"
+source = "git+https://github.com/sooda/cpal?branch=v0.14-backport-wasapi-resampling#4b0cc1f9ef43dccf81f650b5b25154e023312681"
 dependencies = [
  "alsa",
  "core-foundation-sys",
@@ -1660,7 +1659,7 @@ dependencies = [
 [[package]]
 name = "nannou_audio"
 version = "0.19.1"
-source = "git+https://github.com/sooda/nannou?branch=use-cpal-0.14#31960435d275ac51437d9b46c91e459e974feef6"
+source = "git+https://github.com/sooda/nannou?branch=use-cpal-0.14-extras#6fa89832294b9e8341ef713a88ac3f6102017687"
 dependencies = [
  "cpal",
  "dasp_sample",

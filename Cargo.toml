@@ -7,6 +7,6 @@ license = "MIT"
 
 [dependencies]
 nannou = "0.19"
-nannou_audio = { git = "https://github.com/sooda/nannou", branch = "use-cpal-0.14" }
+nannou_audio = { git = "https://github.com/sooda/nannou", branch = "use-cpal-0.14-extras" }
 glicol = { version = "0.13", features = ["use-samples"] }
 audrey = { version = "0.3", default-features = false, features = ["wav"] }
