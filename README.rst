@@ -7,7 +7,7 @@ A small demo for Instanssi_ by Retkikunta
 
 50% partycoded, 100% organic
 
-Run with ``cargo run --release``
+Run with ``cargo run --release`` or grab a release from github that includes prebuilt binaries for Linux and Windows.
 
 License
 -------

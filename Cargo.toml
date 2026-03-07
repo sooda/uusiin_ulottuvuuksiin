@@ -2,7 +2,7 @@ cargo-features = ["trim-paths", "panic-immediate-abort"]
 
 [package]
 name = "uusiin_ulottuvuuksiin"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 authors = ["Konsta Hölttä <sooda@iki.fi>"]
 license = "MIT"
