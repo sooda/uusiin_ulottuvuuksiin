@@ -1,3 +1,5 @@
+cargo-features = ["trim-paths", "panic-immediate-abort"]
+
 [package]
 name = "uusiin_ulottuvuuksiin"
 version = "0.1.0"
@@ -10,3 +12,12 @@ nannou = "0.19"
 nannou_audio = { git = "https://github.com/sooda/nannou", branch = "use-cpal-0.14-extras" }
 glicol = { version = "0.13", features = ["use-samples"] }
 audrey = { version = "0.3", default-features = false, features = ["wav"] }
+
+[profile.pak]
+inherits = "release"
+lto = true
+opt-level = "s"
+panic = "immediate-abort"
+split-debuginfo = "packed"
+strip = true
+trim-paths = "object"
